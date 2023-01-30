@@ -88,14 +88,13 @@ class DomainDisentangleModel(nn.Module):
         )
 
         self.domain_classifier = nn.Sequential(
-            nn.Linear(512,64),
-            nn.LeakyReLU(),
-
-            nn.Linear(64,4),
+            nn.Linear(512,4),
+            # nn.LeakyReLU(),
+            # nn.Linear(64,4),
             # nn.LeakyReLU() # 会出现负数，后面求log会有nan
             # nn.ReLU()
             # nn.Linear(512,4),
-            # nn.Softmax(dim=1) # 需要分别冻住对应层，分别训练模型，也可能有梯度爆炸问题，用梯度裁剪解决
+            # nn.LogSoftmax(dim=1) # 需要分别冻住对应层，分别训练模型，也可能有梯度爆炸问题，用梯度裁剪解决
         )
         self.category_classifier = nn.Sequential(
             nn.Linear(512,7),
@@ -118,16 +117,14 @@ class DomainDisentangleModel(nn.Module):
         # need to return
         fG_hat = torch.cat((fds,fcs),dim=1)
         fG_hat = self.reconstructor(fG_hat)
-        # print(fG_hat.shape)
+        # fG_hat = fds
         Cfcs = self.category_classifier(fcs) # 经过classifier之后再传出去，nn自带的CrossEntropy本身包括了logSoftmax的计算
         DCfcs = self.domain_classifier(fcs) #??????????? 这个要放外面算？？？，要冻住DC，反向传播不能更新domain_classifier
 
         DCfds = self.domain_classifier(fds)
         Cfds = self.category_classifier(fds)
 
-        # print(Cfds)
         eps = torch.tensor(1e-5, dtype=torch.float)
         # Cfds = torch.clamp(Cfds,min=eps,max=1) # 用softmax去掉这俩会有nan
         # DCfcs = torch.clamp(DCfcs,min=eps,max=1)
         return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds
-
