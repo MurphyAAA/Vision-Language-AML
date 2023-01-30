@@ -31,7 +31,6 @@ def setup_experiment(opt):
 
 def main(opt):
     experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
-
     # Skip training if '--test' flag is set
     if not opt['test']:
     # --test is not set
@@ -82,6 +81,35 @@ def main(opt):
                     data_source = next(data_source_iter)# next(...)
                     data_target = next(data_target_iter)# next(...)
                     total_train_loss += experiment.train_iteration(data_source, data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
+
+                    if iteration % opt['print_every'] == 0:  # 每50次 输出一条当前的平均损失
+                        logging.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
+
+                    if iteration % opt['validate_every'] == 0:
+                        # Run validation
+                        val_accuracy, val_loss = experiment.validate(
+                            validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        # print(len(validation_loader))
+                        logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
+                        if val_accuracy > best_accuracy:
+                            best_accuracy = val_accuracy
+                            experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', epoch, iteration,
+                                                       best_accuracy, total_train_loss)
+                        experiment.save_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth', epoch, iteration,
+                                                   best_accuracy, total_train_loss)
+
+                    iteration += 1
+                    i += 1
+            elif opt['experiment'] == 'clip_disentangle':
+                len_dataloader = min(len(train_loader), len(test_loader))
+                data_source_iter = iter(train_loader)
+                data_target_iter = iter(test_loader)
+                i = 0
+                while i < len_dataloader:
+                    data_source = next(data_source_iter)  # next(...)
+                    data_target = next(data_target_iter)  # next(...)
+                    total_train_loss += experiment.train_iteration(data_source,
+                                                                   data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
 
                     if iteration % opt['print_every'] == 0:  # 每50次 输出一条当前的平均损失
                         logging.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
