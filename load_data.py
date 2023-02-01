@@ -90,68 +90,48 @@ def read_lines(data_path, domain_name):
 
 def read_lines_CLIP(data_path, domain_name): # data_path:./data/PACS
     examples = {}
-    with open(f'{data_path}/{domain_name}.txt') as f: # e.g. 打开./data/PACS/art_painting.txt文件
-        lines = f.readlines()
-
-    for line in lines:
-        line = line.strip().split()[0].split('/')
-        category_name = line[3] # dog、elephant....
-        category_idx = CATEGORIES[category_name] # 枚举： 某个类型字符串的名字 -> 数字编号  类别不需要都一样，但要保存下来
-        image_name = line[4]
-        # data/PACS/art_painting/dog/pic_001.jpg
-        image_path = f'{data_path}/kfold/{domain_name}/{category_name}/{image_name}'
-        if category_idx not in examples.keys():
-            examples[category_idx] = [(image_path,-1)] # example[i]:第i个类 所有图片数据的路径和description的元组 [(xxx/pic_0.jpg, description1), (xxx/pic_1.jpg, description2)... ]
-        else:
-            examples[category_idx].append((image_path,-1))
-        # value 是(path,description)的元组
-
+    # value 是(path,description)的元组
     # 文件中是所有图片，但只要指定domain的图片，以数组形式返回，类别id是索引，内容是路径和des的元组
     txtFileNames=["groupe1AML", "groupe1DAAI", "groupe2AML", "groupe2DAAI", "groupe3AML", "groupe3DAAI", "groupe5AML", "groupe6AML"]
-    all_imgspath_desid=[] # 所有文件中当前domain的 (图的地址, descriptions) tuple
+    all_imgspath_des=[] # 所有文件中当前domain的 (图的地址, descriptions) tuple
     all_cate_id=[] # 每张图对应的category 数字形式
-    all_descriptions=[]
-    base_desc_index=0
     for filename in txtFileNames:
+        path_desc, categoryids = extract_images(f'{data_path}/text/{filename}.txt',domain_name,data_path)
+        # print(path_desc) # 一个文件中的 imagePath-description pair
+        # path_desc=[(path,desIndex+base_desc_index) for path, desIndex in path_desc]
 
-        path_descid, categoryids, desc = extract_images(f'{data_path}/text/{filename}.txt',domain_name,data_path)
-        # print(path_desc)
-        path_descid=[(path,desIndex+base_desc_index) for path, desIndex in path_descid]
-        # print(path_desc)
+        all_imgspath_des = list(all_imgspath_des) + list(path_desc) # 所有文件总的image-descriptions pair
+        all_cate_id = list(all_cate_id) + list(categoryids) # 每个文件对应的category id
 
-        all_imgspath_desid = list(all_imgspath_desid) + list(path_descid) # path_desc 存的是图片路径和description 数组的索引
-        all_cate_id = list(all_cate_id) + list(categoryids)
-        all_descriptions = list(all_descriptions) + list(desc) # 所有文件的descriptions
-        # print(len(desc))
-        base_desc_index += len(desc)
-    for i in range(len(all_cate_id)):
-        examples[all_cate_id[i]].append(all_imgspath_desid[i])
+    for i in range(len(all_cate_id)): # 遍历path_desc
+        if all_cate_id[i] not in examples.keys():
+            examples[all_cate_id[i]] = [all_imgspath_des[i]] # example[i]:第i个类 所有图片数据的路径和description的元组 [(xxx/pic_0.jpg, description1), (xxx/pic_1.jpg, description2)... ]
+        else:
+            examples[all_cate_id[i]].append(all_imgspath_des[i])
     # examples[i] 表示第i类，其中元素为tuple: (image_path, description)
-    # print(examples[1]) # 第1类
-    # print(all_descriptions)
-    # print(len(all_descriptions))
-    return examples, all_descriptions
+    # print("[2]",examples[1]) # 第1类
+    return examples
 def extract_images(file_path, domain_name,data_path):
-    images=[]
+    images_desc=[]
     categoryids=[]
-    desc=[]
     with open(file_path, 'r') as f:
         data = f.read()
         data = json.loads(data.replace("\'","\""))
-    desc_index =0
+    # desc_index =0
     for item in data:
         line = item['image_name'].strip().split()[0].split('/')
         domain = line[0]
         category = line[1]
         if domain == domain_name:
             img_path = f'{data_path}/kfold/'
-            images.append((img_path+item['image_name'],desc_index))
-            desc.append(item['descriptions'])
-            desc_index += 1
+            des=''
+            for i,x in enumerate(item['descriptions']):  # concat n string parameters -> 1 string
+                des = des + f'[{DESCRIPTORS[i]}]: {x}; '
+            images_desc.append((img_path + item['image_name'], des))
             categoryids.append(CATEGORIES[category])
-    # images: 一个数组，每个元素是一个元组(image_path, description)
+    # images_desc: 一个数组，每个元素是一个元组(image_path, description)
     # categoryids: 数组，每个元素代表该索引的元组的category label:[0,1,2,1...] 其中 0-dog, 1-elephant ...
-    return images, categoryids, desc
+    return images_desc, categoryids
 
 def build_splits_baseline(opt):
     source_domain = 'art_painting'
@@ -283,8 +263,12 @@ def build_splits_clip_disentangle(opt):
     target_domain = opt['target_domain']
     # ————构建 examples字典
     # xxx_examples[i] 表示第i类，其中元素为tuple: (image_path, description)
-    source_examples, source_labeled_descriptions = read_lines_CLIP(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
-    target_examples, target_labeled_descriptions = read_lines_CLIP(opt['data_path'], target_domain)
+    # source_examples, source_labeled_descriptions = read_lines_CLIP(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
+    # target_examples, target_labeled_descriptions = read_lines_CLIP(opt['data_path'], target_domain)
+    # source_examples = read_lines(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
+    # target_examples = read_lines(opt['data_path'], target_domain)
+    source_examples = read_lines_CLIP(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
+    target_examples = read_lines_CLIP(opt['data_path'], target_domain)
     # 带description的图片直接从read_lines就放入source example和target example，再——》放入train_examples和test_examples中，和普通训练集一样切开一部分放入验证集
     # print(source_examples)
     # Compute ratios of examples for each category
@@ -303,17 +287,17 @@ def build_splits_clip_disentangle(opt):
     # images [without or with] descriptions
     for category_idx, examples_list in source_examples.items():  # key(类别id): val(图片路径, description id)
         split_idx = round(source_category_ratios[category_idx] * val_split_length)  # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
-        for i, example in enumerate(examples_list): # example (图片路径, description id)
-            path, descriptions_idx = example
+        for i, example in enumerate(examples_list): # example (图片路径, description)
+            path, descriptions = example
             if i > split_idx:
-                train_examples.append([path, category_idx, DOMAINS[source_domain], descriptions_idx])  # each pair is [path_to_img, class_label]
+                train_examples.append([path, category_idx, DOMAINS[source_domain], descriptions])  # each pair is [path_to_img, class_label, description]
             else:
-                val_examples.append([path, category_idx, DOMAINS[source_domain], descriptions_idx])  # each pair is [path_to_img, class_label]
+                val_examples.append([path, category_idx, DOMAINS[source_domain], descriptions])  # each pair is [path_to_img, class_label, description]
 
     for category_idx, examples_list in target_examples.items():
         for example in examples_list:
-            path, descriptions_idx = example
-            test_examples.append([path, category_idx, DOMAINS[target_domain], descriptions_idx])  # each pair is [path_to_img, class_label]
+            path, descriptions = example
+            test_examples.append([path, category_idx, DOMAINS[target_domain], descriptions])  # each pair is [path_to_img, class_label, description]
 
     ### ______
 
@@ -345,4 +329,4 @@ def build_splits_clip_disentangle(opt):
                              num_workers=opt['num_workers'], shuffle=False)
 
 
-    return train_loader, val_loader, test_loader, source_labeled_descriptions, target_labeled_descriptions
+    return train_loader, val_loader, test_loader#, source_labeled_descriptions, target_labeled_descriptions
