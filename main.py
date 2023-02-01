@@ -11,26 +11,29 @@ def setup_experiment(opt):
     if opt['experiment'] == 'baseline':
         experiment = BaselineExperiment(opt) # 实例化一个BaselineExperiment类 对象
         train_loader, validation_loader, test_loader = build_splits_baseline(opt) # DataLoader() 构建若干batch数据
-        # return experiment, train_loader, validation_loader, test_loader
+        return experiment, train_loader, validation_loader, test_loader
 
     elif opt['experiment'] == 'domain_disentangle':
         experiment = DomainDisentangleExperiment(opt)
         train_loader, validation_loader, test_loader = build_splits_domain_disentangle(opt)
-        # return experiment, train_loader, validation_loader, test_loader
+        return experiment, train_loader, validation_loader, test_loader
 
     elif opt['experiment'] == 'clip_disentangle':
         experiment = CLIPDisentangleExperiment(opt)
-        train_loader, validation_loader, test_loader = build_splits_clip_disentangle(opt)
-        # return experiment, train_loader, validation_loader, test_loader
+        train_loader, validation_loader, test_loader, source_labeled_descriptions, target_labeled_descriptions  = build_splits_clip_disentangle(opt)
+        return experiment, train_loader, validation_loader, test_loader, source_labeled_descriptions, target_labeled_descriptions
 
     else:
         raise ValueError('Experiment not yet supported.')
     
-    return experiment, train_loader, validation_loader, test_loader
+    # return experiment, train_loader, validation_loader, test_loader
 
 
 def main(opt):
-    experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
+    if opt['experiment'] == 'clip_disentangle':
+        experiment, train_loader, validation_loader, test_loader, source_labeled_descriptions, target_labeled_descriptions = setup_experiment(opt)
+    else:
+        experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
     # Skip training if '--test' flag is set
     if not opt['test']:
     # --test is not set
@@ -50,7 +53,6 @@ def main(opt):
         # while iteration < opt['max_iterations']: # 如果target domain特也放入训练接则一轮是125次(len(train_loader)=125) 一共5000/125=40 epoch     train_loader越小迭代的epoch数量越多
         while epoch < opt['num_epochs']:
             # 扫一轮训练数据
-            # print(len(train_loader))
             logging.info(f'[epoch - {epoch}] ')
             if opt['experiment'] == 'baseline':
                 for data in train_loader: # Domain Distanglement的 train_loader必须包含domain的
@@ -108,8 +110,9 @@ def main(opt):
                 while i < len_dataloader:
                     data_source = next(data_source_iter)  # next(...)
                     data_target = next(data_target_iter)  # next(...)
-                    total_train_loss += experiment.train_iteration(data_source,
-                                                                   data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
+                    total_train_loss += experiment.train_iteration(data_source,data_target,
+                                                                   source_labeled_descriptions,
+                                                                   target_labeled_descriptions)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
 
                     if iteration % opt['print_every'] == 0:  # 每50次 输出一条当前的平均损失
                         logging.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
