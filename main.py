@@ -103,7 +103,7 @@ def main(opt):
                     iteration += 1
                     i += 1
             elif opt['experiment'] == 'clip_disentangle':
-                len_dataloader = min(len(train_loader), len(test_loader))
+                len_dataloader = min(len(train_loader), len(test_loader)) # 数据少 扫一遍数据跑的iteration少
                 data_source_iter = iter(train_loader)
                 data_target_iter = iter(test_loader)
                 i = 0

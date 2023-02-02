@@ -170,14 +170,6 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-
-            nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-
-            nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
         )
 
     def forward(self, x):
