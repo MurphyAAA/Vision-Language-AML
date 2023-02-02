@@ -36,8 +36,8 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.cross_entropy = torch.nn.CrossEntropyLoss()
         self.rec_loss = torch.nn.MSELoss()
         # hyper parameters
-        self.alpha1 = torch.nn.Parameter(torch.tensor(0.05, device='cuda'), requires_grad=True)
-        self.alpha2 = torch.nn.Parameter(torch.tensor(0.003, device='cuda'), requires_grad=True)
+        self.alpha1 = torch.nn.Parameter(torch.tensor(0.048, device='cuda'), requires_grad=True)
+        self.alpha2 = torch.nn.Parameter(torch.tensor(0.0028, device='cuda'), requires_grad=True)
         self.w = [3, 1, 0.5, 1]
         # Setup optimization procedure
         params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(
