@@ -88,7 +88,10 @@ class DomainDisentangleModel(nn.Module):
         )
 
         self.domain_classifier = nn.Sequential(
-            nn.Linear(512,4),
+            nn.Linear(512,512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512,4)
             # nn.LeakyReLU(),
             # nn.Linear(64,4),
             # nn.LeakyReLU() # 会出现负数，后面求log会有nan
@@ -97,9 +100,10 @@ class DomainDisentangleModel(nn.Module):
             # nn.LogSoftmax(dim=1) # 需要分别冻住对应层，分别训练模型，也可能有梯度爆炸问题，用梯度裁剪解决
         )
         self.category_classifier = nn.Sequential(
-            nn.Linear(512,7),
-            # nn.ReLU()
-            # nn.BatchNorm1d(7),
+            nn.Linear(512,512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512,7)
             # nn.LogSoftmax(dim=1)
             # nn.Softmax(dim=1)
         )
