@@ -88,7 +88,7 @@ def read_lines(data_path, domain_name):
             examples[category_idx].append(image_path)
     return examples
 
-def read_lines_CLIP(data_path, domain_name): # data_path:./data/PACS
+def read_lines_CLIP(data_path, domain_names): # data_path:./data/PACS
     examples = {}
     # value 是(path,description)的元组
     # 文件中是所有图片，但只要指定domain的图片，以数组形式返回，类别id是索引，内容是路径和des的元组
@@ -96,7 +96,7 @@ def read_lines_CLIP(data_path, domain_name): # data_path:./data/PACS
     all_imgspath_des=[] # 所有文件中当前domain的 (图的地址, descriptions) tuple
     all_cate_id=[] # 每张图对应的category 数字形式
     for filename in txtFileNames:
-        path_desc, categoryids = extract_images(f'{data_path}/text/{filename}.txt',domain_name,data_path)
+        path_desc, categoryids = extract_images(f'{data_path}/text/{filename}.txt',domain_names,data_path)
         # print(path_desc) # 一个文件中的 imagePath-description pair
         # path_desc=[(path,desIndex+base_desc_index) for path, desIndex in path_desc]
 
@@ -111,7 +111,7 @@ def read_lines_CLIP(data_path, domain_name): # data_path:./data/PACS
     # examples[i] 表示第i类，其中元素为tuple: (image_path, description)
     # print("[2]",examples[1]) # 第1类
     return examples
-def extract_images(file_path, domain_name,data_path):
+def extract_images(file_path, domain_names,data_path):
     images_desc=[]
     categoryids=[]
     with open(file_path, 'r') as f:
@@ -122,7 +122,9 @@ def extract_images(file_path, domain_name,data_path):
         line = item['image_name'].strip().split()[0].split('/')
         domain = line[0]
         category = line[1]
-        if domain == domain_name:
+        # if domain == domain_name:
+        if domain in domain_names:
+            # print(domain)
             img_path = f'{data_path}/kfold/'
             des=''
             for i,x in enumerate(item['descriptions']):  # concat n string parameters -> 1 string
@@ -267,8 +269,10 @@ def build_splits_clip_disentangle(opt):
     # target_examples, target_labeled_descriptions = read_lines_CLIP(opt['data_path'], target_domain)
     # source_examples = read_lines(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
     # target_examples = read_lines(opt['data_path'], target_domain)
-    source_examples = read_lines_CLIP(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
-    target_examples = read_lines_CLIP(opt['data_path'], target_domain)
+    clip_examples = read_lines_CLIP(opt['data_path'],['art_painting', 'cartoon', 'photo', 'sketch'])
+
+    source_examples = read_lines_CLIP(opt['data_path'], [source_domain])  # opt['data_path']: "data/PACS"
+    target_examples = read_lines_CLIP(opt['data_path'], [target_domain])
     # 带description的图片直接从read_lines就放入source example和target example，再——》放入train_examples和test_examples中，和普通训练集一样切开一部分放入验证集
     # print(source_examples)
     # Compute ratios of examples for each category
