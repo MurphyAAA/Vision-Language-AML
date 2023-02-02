@@ -128,3 +128,65 @@ class DomainDisentangleModel(nn.Module):
         # Cfds = torch.clamp(Cfds,min=eps,max=1) # 用softmax去掉这俩会有nan
         # DCfcs = torch.clamp(DCfcs,min=eps,max=1)
         return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds
+
+
+class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
+    def __init__(self):
+        super(CLIPDisentangleModel, self).__init__()
+        self.feature_extractor = FeatureExtractor()
+        self.category_encoder= nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
+            nn.ReLU()
+        )
+        self.domain_encoder = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
+            nn.ReLU()
+        )
+        self.category_classifier = nn.Sequential(
+            nn.Linear(512,7)
+        )
+        self.domain_classifier = nn.Sequential(
+            nn.Linear(512,4)
+        )
+        self.reconstructor = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+
+        x = self.feature_extractor(x)
+        fcs = self.category_encoder(x)
+        fds = self.domain_encoder(x)
+
+        # need to return
+        fG_hat = torch.cat((fds, fcs), dim=1)
+        fG_hat = self.reconstructor(fG_hat)
+
+        Cfcs = self.category_classifier(fcs)
+        DCfcs = self.domain_classifier(fcs)
+
+        DCfds = self.domain_classifier(fds)
+        Cfds = self.category_classifier(fds)
+
+
+        return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds, fds
