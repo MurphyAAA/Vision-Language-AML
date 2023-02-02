@@ -22,22 +22,19 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.nll_loss = torch.nn.NLLLoss()
         self.cross_entropy = torch.nn.CrossEntropyLoss()
         self.rec_loss = torch.nn.MSELoss()
-        self.alpha1 = torch.nn.Parameter(torch.tensor(0.5,device='cuda'), requires_grad=True)  # 有梯度消失的问题，所以这个权重学习成负数了
-        self.alpha2 = torch.nn.Parameter(torch.tensor(0.1,device='cuda'), requires_grad=True)
-        self.w1 = 1 #主要训练category分类器 所以他的权重高一点，其他权重低一点
+        self.alpha1 = torch.nn.Parameter(torch.tensor(0.48,device='cuda'), requires_grad=True)  # 有梯度消失的问题，所以这个权重学习成负数了
+        self.alpha2 = torch.nn.Parameter(torch.tensor(0.028,device='cuda'), requires_grad=True)
+        self.w1 = 2 #主要训练category分类器 所以他的权重高一点，其他权重低一点
         self.w2 = 1
         self.w3 = 1
         # Setup optimization procedure
         # self.optimizer = torch.optim.Adam(list(self.model.parameters())+[self.alpha1,self.alpha2], lr=opt['lr'])
-
         # +[self.alpha1, self.alpha2]
         self.optimizer1 = torch.optim.Adam(list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters()) + list(self.model.feature_extractor.parameters()),lr=opt['lr'] )
         self.optimizer2 = torch.optim.Adam(list(self.model.category_classifier.parameters()) + list(self.model.domain_classifier.parameters()),lr=opt['lr'])
         # print("model parameters: ",self.model.parameters())
         # print("criterion parameters: ",self.criterion.parameters())
-    def entropy_loss(self, f):  # 应该返回一个标量 最后是求和的
-        # mlogf = torch.mean(f, dim=0)
-        # res = -torch.mean(mlogf)
+    def entropy_loss(self, f):
         return torch.sum(-F.softmax(f,1)*F.log_softmax(f,1),1).mean()
     def save_checkpoint(self, path, epoch, iteration, best_accuracy, total_train_loss):
         checkpoint = {}
@@ -100,12 +97,9 @@ class DomainDisentangleExperiment: # See point 2. of the project
         x_t = x_t.to(self.device) # [32,3,224,224] 32是一个batch中图片数量
         yd_t = yd_t.to(self.device)
 
-        # torch.autograd.set_detect_anomaly(True) # 检查前向传播
-
         # feature_extractor, domain_encoder, category_encoder, domain_classifier, category_classifier, reconstructor
         fG1, fG_hat1, Cfcs1, DCfcs1, DCfds1, Cfds1 = self.model(x_s)
         fG2, fG_hat2, _, DCfcs2, DCfds2, Cfds2 = self.model(x_t)
-        # self.freezeLayer(self.model.feature_extractor,True) # 但凡没有冻住，计算loss的时候就会计算，梯度就会被更新，第二次backward就会报错inplace operation
 
         # train reconstructor + category_encoder + domain_encoder
         self.freezeLayer(self.model.category_classifier, True)
@@ -113,8 +107,6 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
         l_class_ent_1 = self.entropy_loss(DCfcs1)  # train category_encoder
         l_class_ent_2 = self.entropy_loss(DCfcs2) #注释掉这个
-        # l_class_ent_1 = -1.0 * self.rec_loss(DCfcs1,yd_s)
-        # l_class_ent_2 = -1.0 * self.cross_entropy(DCfcs2,yd_t)
         l_domain_ent_1 = self.entropy_loss(Cfds1) # train domain_encoder 1
         l_domain_ent_2 = self.entropy_loss(Cfds2) # train domain_encoder 2
         # l_domain_ent_1 = self.cross_entropy(Cfds1,y_s)
@@ -122,20 +114,16 @@ class DomainDisentangleExperiment: # See point 2. of the project
         l_rec_1 = self.rec_loss(fG1, fG_hat1) # train reconstructor 1
         l_rec_2 = self.rec_loss(fG2, fG_hat2) # train reconstructor 2
         L_rec = l_rec_1 + l_rec_2
-        L1 = self.w3 * L_rec + self.w1 * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + self.w2 * self.alpha2 * (
-                    l_domain_ent_1 )
+        L1 = self.w3 * L_rec + \
+             self.w1 * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + \
+             self.w2 * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2 )
         self.optimizer1.zero_grad()
-        # self.print_parameters_can_be_calculate()
         L1.backward(retain_graph=True) # 计算了feature_extractor + category_encoder + domain_encoder + reconstructor的梯度
-
-        # self.print_calculated_paramters_name()
         # self.optimizer.param_groups[0]['params'] = [p for p in self.model.parameters() if p.requires_grad]
 
-        # train [domain_classifier]
         self.freezeLayer(self.model.category_classifier, False)
         self.freezeLayer(self.model.domain_classifier, False)
         self.freezeLayer(self.model.reconstructor, True)
-
         # train [domain_classifier]
         l_domain_1 = self.cross_entropy(DCfds1, yd_s)
         l_domain_2 = self.cross_entropy(DCfds2, yd_t)
@@ -151,12 +139,9 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.optimizer1.step()  # 更新了:  feature_extractor + category_encoder + domain_encoder + reconstructor + alpha1 + alpha2
         self.optimizer2.step()  # 更新了： category_classifier + domain_classifier
         self.unfreezeAll()
-        # print(self.model.category_classifier[0].weight.grad)
         # loss = self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
         loss = L1+L2
-        # print(L1.item() , L_rec.item(),(l_class_ent_1.item()),(l_class_ent_2.item()),(l_domain_ent_1).item())
-        # print('[loss] ',loss.item(),l_class.item(),l_domain.item(),L_rec.item())
-        # print('--[alpha] ',self.alpha1,self.alpha2)
+        # print(self.alpha1.item(),self.alpha2.item())
         return loss.item()
 
     def validate(self, loader):
@@ -172,20 +157,12 @@ class DomainDisentangleExperiment: # See point 2. of the project
                 yd = yd.to(self.device)
 
                 fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x)
-                # opt = parse_arguments()
-                # Cfcs = Cfcs[0:opt['batch_size'], :]
-                # loss += self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y,yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
 
                 loss += self.cross_entropy(Cfcs, y)
-                # L_domain = self.nll_loss(torch.log(DCfds), yd)  # + self.alpha2*self.entropy_loss(Cfds)
-                # L_rec = self.rec_loss(fG, fG_hat)
-                # loss += self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
 
                 pred = torch.argmax(Cfcs, dim=-1)
-                # print(Cfcs.shape)
                 accuracy += (pred == y).sum().item()
                 count += x.size(0)
-                # print(count)
 
         mean_accuracy = accuracy / count
         mean_loss = loss / count

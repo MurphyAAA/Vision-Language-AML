@@ -92,7 +92,7 @@ def read_lines_CLIP(data_path, domain_name): # data_path:./data/PACS
     examples = {}
     # value 是(path,description)的元组
     # 文件中是所有图片，但只要指定domain的图片，以数组形式返回，类别id是索引，内容是路径和des的元组
-    txtFileNames=["groupe1AML", "groupe1DAAI", "groupe2AML", "groupe2DAAI", "groupe3AML", "groupe3DAAI", "groupe5AML", "groupe6AML"]
+    txtFileNames=["groupe1AML", "groupe1DAAI", "groupe2AML", "groupe2DAAI", "groupe3AML", "groupe3DAAI", "groupe5AML", "groupe6AML", "second"]
     all_imgspath_des=[] # 所有文件中当前domain的 (图的地址, descriptions) tuple
     all_cate_id=[] # 每张图对应的category 数字形式
     for filename in txtFileNames:

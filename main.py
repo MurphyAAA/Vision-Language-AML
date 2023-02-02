@@ -50,8 +50,8 @@ def main(opt):
         logging.info('——————————————————————————————————————————————————————————————————') # logging.info() 输出到日志
 
         # Train loop 运行N次也只能训练一次，而不是在上次最好的基础上继续训练
-        # while iteration < opt['max_iterations']: # 如果target domain特也放入训练接则一轮是125次(len(train_loader)=125) 一共5000/125=40 epoch     train_loader越小迭代的epoch数量越多
-        while epoch < opt['num_epochs']:
+        while iteration < opt['max_iterations']: # 如果target domain特也放入训练接则一轮是125次(len(train_loader)=125) 一共5000/125=40 epoch     train_loader越小迭代的epoch数量越多
+        # while epoch < opt['num_epochs']:
             # 扫一轮训练数据
             logging.info(f'[epoch - {epoch}] ')
             if opt['experiment'] == 'baseline':
@@ -89,8 +89,7 @@ def main(opt):
 
                     if iteration % opt['validate_every'] == 0:
                         # Run validation
-                        val_accuracy, val_loss = experiment.validate(
-                            validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        val_accuracy, val_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
                         # print(len(validation_loader))
                         logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         if val_accuracy > best_accuracy:
@@ -117,9 +116,9 @@ def main(opt):
 
                     if iteration % opt['validate_every'] == 0:
                         # Run validation
-                        val_accuracy, val_loss = experiment.validate(
-                            validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        val_accuracy, val_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
                         # print(len(validation_loader))
+                        # print(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         if val_accuracy > best_accuracy:
                             best_accuracy = val_accuracy
@@ -136,8 +135,11 @@ def main(opt):
 
     # Test
     experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
+    # experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
     test_accuracy, _ = experiment.validate(test_loader)
     logging.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
+    print(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
+
 if __name__ == '__main__':
 
     opt = parse_arguments()
