@@ -1,5 +1,3 @@
-
-#TODO
 import torch
 from models.base_model import DomainDisentangleModel
 from my_loss import DomainDisentangleLoss
