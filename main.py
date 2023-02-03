@@ -20,12 +20,12 @@ def setup_experiment(opt):
 
     elif opt['experiment'] == 'clip_disentangle':
         experiment = CLIPDisentangleExperiment(opt)
-        if opt['clip_pretrained'] == 'True':
-            train_loader, validation_loader, test_loader = build_splits_clip_disentangle(opt)
+        if opt['train_clip'] == 'True':
+            train_loader, validation_loader, test_loader, train_clip_loader = build_splits_clip_disentangle(opt,experiment.preprocess)
+            return experiment, train_loader, validation_loader, test_loader, train_clip_loader
         else: # fine-tune clip
-            train_loader, validation_loader, test_loader, CLIP的训练接 = build_splits_clip_disentangle(opt)
-
-        return experiment, train_loader, validation_loader, test_loader
+            train_loader, validation_loader, test_loader = build_splits_clip_disentangle(opt,experiment.preprocess)
+            return experiment, train_loader, validation_loader, test_loader
 
     else:
         raise ValueError('Experiment not yet supported.')
@@ -34,10 +34,12 @@ def setup_experiment(opt):
 
 
 def main(opt):
-    # if opt['experiment'] == 'clip_disentangle':
-    #     experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
-    # else:
-    experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
+    fine_tune_clip_flag = False
+    if opt['experiment'] == 'clip_disentangle' and opt['train_clip'] == 'True':
+        experiment, train_loader, validation_loader, test_loader, train_clip_loader = setup_experiment(opt)
+        fine_tune_clip_flag = True
+    else:
+        experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
     # Skip training if '--test' flag is set
     if not opt['test']:
     # --test is not set
@@ -76,8 +78,8 @@ def main(opt):
                         experiment.save_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth', epoch, iteration, best_accuracy, total_train_loss)
 
                     iteration += 1
-                    # if iteration > opt['max_iterations']:
-                    #     break
+                    if iteration > opt['max_iterations']:
+                        break
             elif opt['experiment'] == 'domain_disentangle':
                 len_dataloader = min(len(train_loader), len(test_loader))
                 data_source_iter = iter(train_loader)
@@ -107,12 +109,28 @@ def main(opt):
 
                     iteration += 1
                     i += 1
+                    if iteration > opt['max_iterations']:
+                        break
             elif opt['experiment'] == 'clip_disentangle':
                 # 先 手动预训练CLIP 用所有domain的作为数据集，而不仅仅是source domain了
-                if opt['clip_pretrained'] =='False':
+                if opt['train_clip'] =='True' and fine_tune_clip_flag == True: # 需要手动训练clip，且还没训练过
+                    fine_tune_clip_flag = False
+                    clip_iteration = 0
                     print("fine-tune clip")
+                    experiment.unfreeze_clip()
+                    clip_tot_loss=0
+                    while clip_iteration < opt['clip_iteration']:
+                        for data in train_clip_loader:
+                            clip_tot_loss+=experiment.clip_train_iteration(data)
+                            if clip_iteration % opt['print_every'] == 0:
+                                print(f'[CLIP TRAIN - {clip_iteration}] Loss: {clip_tot_loss / (clip_iteration + 1)}')
+                            clip_iteration += 1
 
-
+                            if clip_iteration > opt['clip_iteration']:
+                                break
+                    experiment.freeze_clip()
+                    experiment.clip_model.float()
+                    print("finish clip pre-training ",clip_iteration)
                 len_dataloader = min(len(train_loader), len(test_loader)) # 数据少 扫一遍数据跑的iteration少
                 data_source_iter = iter(train_loader)
                 data_target_iter = iter(test_loader)
@@ -141,15 +159,18 @@ def main(opt):
 
                     iteration += 1
                     i += 1
+                    if iteration > opt['max_iterations']:
+                        break
             epoch += 1
-            if epoch >= opt['num_epochs']:
-                break
+            # if epoch >= opt['num_epochs']:
+            #     break
 
     # Test
     experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
     # experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
     test_accuracy, _ = experiment.validate(test_loader)
-    logging.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
+    # logging.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
+    logger1.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
     print(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
 
 

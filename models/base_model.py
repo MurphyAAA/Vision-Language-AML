@@ -165,11 +165,11 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
             nn.Linear(512,7)
         )
         self.domain_classifier = nn.Sequential(
-            nn.Linear(512,2)
+            nn.Linear(512,4)
         )
         self.reconstructor = nn.Sequential(
             nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
+            # nn.BatchNorm1d(512),
             nn.ReLU(),
         )
 
@@ -184,7 +184,7 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
         fG_hat = self.reconstructor(fG_hat)
 
         Cfcs = self.category_classifier(fcs)
-        DCfcs = self.domain_classifier(fcs)
+        DCfcs = self.domain_classifier(fcs) # 使category encoder排除掉domain的信息
 
         DCfds = self.domain_classifier(fds)
         Cfds = self.category_classifier(fds)

@@ -30,7 +30,7 @@ def parse_arguments():
     
     # Additional arguments can go below this line:
     #parser.add_argument('--test', type=str, default='some default value', help='some hint that describes the effect')
-    parser.add_argument('--clip_pretrained', type=str, default='True', choices=['True','False']) # False时自己手动预训练CLIP
+    parser.add_argument('--train_clip', type=str, default='False', choices=['True','False']) # True时自己手动预训练CLIP
     parser.add_argument('--clip_iteration', type=int, default=2000)
     # Build options dict
     opt = vars(parser.parse_args())

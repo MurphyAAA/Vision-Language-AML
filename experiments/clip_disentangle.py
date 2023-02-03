@@ -4,7 +4,6 @@ from models.base_model import CLIPDisentangleModel
 import torch.nn.functional as F
 
 
-# TODO
 class CLIPDisentangleExperiment:  # See point 4. of the project
 
     def __init__(self, opt):
@@ -12,12 +11,13 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.device = torch.device('cpu' if opt['cpu'] else 'cuda:0')
 
         # load CLIP and freeze it. vision Transformer base
-        self.clip_model, preprocess = clip.load('ViT-B/32',
-                                                device='cpu')  # load it first to CPU to ensure you're using fp32 precision.
+        if opt['train_clip'] =='True':
+            self.clip_model, self.preprocess = clip.load('ViT-B/32',device='cpu',jit=False)  #Must set jit=False for training
+        else:
+            self.clip_model, self.preprocess = clip.load('ViT-B/32',device='cpu') # load it first to CPU to ensure you're using fp32 precision.
         self.clip_model = self.clip_model.to(self.device)
-        self.clip_model.eval()
-        for param in self.clip_model.parameters():
-            param.requires_grad = False
+        self.freeze_clip()
+
         # image = preprocess().unsqueeze(0).to(self.device) # 将PIL.image变成可以作为模型输入的tensor
         # text = clip.tokenize(["xxx","sss","eee"]).to(self.device)
         # img_feature = self.clip_model.encode_image(image)
@@ -42,10 +42,25 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         # Setup optimization procedure
         params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(
             self.model.domain_encoder.parameters()) + list(self.model.feature_extractor.parameters())
-        self.optimizer1 = torch.optim.Adam(params1 + [self.alpha1, self.alpha2], lr=opt['lr'])
+        self.optimizer1 = torch.optim.Adam(params1 , lr=opt['lr'])
 
         params2 = list(self.model.domain_classifier.parameters()) + list(self.model.category_classifier.parameters())
         self.optimizer2 = torch.optim.Adam(params2, lr=opt['lr'])
+
+        self.clip_optimizer = torch.optim.Adam(self.clip_model.parameters(), lr=5e-5, betas=(0.9, 0.98), eps=1e-6, weight_decay=0.2)#Params used from paper, the lr is smaller, more safe for fine tuning to new dataset
+
+    def convert_models_to_fp32(self):
+        for p in self.clip_model.parameters():
+            p.data = p.data.float()
+            p.grad.data = p.grad.data.float()
+    def freeze_clip(self):
+        self.clip_model.eval()
+        for param in self.clip_model.parameters():
+            param.requires_grad = False
+    def unfreeze_clip(self):
+        self.clip_model.train()
+        for param in self.clip_model.parameters():
+            param.requires_grad = True
 
     def entropy_loss(self, f):  # 应该返回一个标量 最后是求和的
         # mlogf = torch.mean(f, dim=0)
@@ -96,6 +111,26 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
                 print(name)
         print(" ]")
 
+    def clip_train_iteration(self,databatch):
+        self.clip_optimizer.zero_grad()
+        x, desc = databatch
+        x = x.to(self.device)
+        tokenized_desc = clip.tokenize(desc, truncate=True).to(self.device)
+
+        logits_per_image, logits_per_text = self.clip_model(x, tokenized_desc)
+
+        ground_truth = torch.arange(len(x), dtype=torch.long, device=self.device)
+
+        total_loss = (self.cross_entropy(logits_per_image, ground_truth) + self.cross_entropy(logits_per_text, ground_truth)) / 2
+        # print("clip loss: ",total_loss)
+        total_loss.backward()
+        if self.device == "cpu":
+            self.clip_optimizer.step()
+        else:
+            self.convert_models_to_fp32()
+            self.clip_optimizer.step()
+            clip.model.convert_weights(self.clip_model) # mixed precision training. Convert applicable model parameters to fp16
+        return total_loss.item()
     def train_iteration(self, data_source, data_target):
 
         x_s, y_s, yd_s, desc_s = data_source
@@ -104,12 +139,12 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         x_s = x_s.to(self.device)
         y_s = y_s.to(self.device)
         yd_s = yd_s.to(self.device)
-        # desc_s = desc_s.to(self.device)
+        textToken_s = clip.tokenize(desc_s,truncate=True).to(self.device)
 
         x_t = x_t.to(self.device)  # [32,3,224,224] 32是一个batch中图片数量
         yd_t = yd_t.to(self.device)
-        # desc_t = desc_t.to(self.device)
-        # assert (len(desc_s) == 32 and len(desc_t) == 32) # 32为batch size
+        textToken_t = clip.tokenize(desc_t,truncate=True).to(self.device)
+
 
         # print(len(y_s), len(desc_s), len(desc_t))
         # feature_extractor, domain_encoder, category_encoder, domain_classifier, category_classifier, reconstructor
@@ -117,8 +152,6 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         # print(fds1.size()) 32 * 512
         fG2, fG_hat2, _, DCfcs2, DCfds2, Cfds2, fds2 = self.model(x_t)
 
-        textToken_s = clip.tokenize(desc_s,truncate=True).to(self.device)
-        textToken_t = clip.tokenize(desc_t,truncate=True).to(self.device)
         text_feature_s = self.clip_model.encode_text(textToken_s)
         text_feature_t = self.clip_model.encode_text(textToken_t)
         # print(text_feature_s.size())
@@ -142,7 +175,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         # print(L_clip)
         L1 = self.w[2] * L_rec + self.w[3] * L_clip + \
              self.w[0] * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + \
-             self.w[1] * self.alpha2 * (l_domain_ent_1)
+             self.w[1] * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2)
         self.optimizer1.zero_grad()
         L1.backward(retain_graph=True)  # feature_extractor + category_encoder + domain_encoder + reconstructor的梯度
 

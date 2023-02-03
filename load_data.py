@@ -61,14 +61,27 @@ class PACSDatasetDomainDisentangle_CLIP(Dataset):
     def __init__(self, examples, transform):
         self.examples = examples
         self.transform = transform
-
     def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, index):
-        img_path, y, yd, descriptions = self.examples[index]
-        x = self.transform(Image.open(img_path).convert('RGB'))
-        return x, y, yd,descriptions   # tuple(图片的tensor，类别label, domain的label, descriptions) # descriptions有可能是-1
+            img_path, y, yd, descriptions = self.examples[index]
+            x = self.transform(Image.open(img_path).convert('RGB'))
+            return x, y, yd,descriptions   # tuple(图片的tensor，类别label, domain的label, descriptions)
+
+class PACSDatasetDomainDisentangle_train_CLIP(Dataset):
+    def __init__(self, examples, clip_preprocess):
+        self.examples = examples
+        self.clip_preprocess = clip_preprocess
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, index):
+            img_path, descriptions = self.examples[index]
+            x = self.clip_preprocess(Image.open(img_path))
+
+            return x,descriptions   # tuple(图片的tensor, descriptions)
+
 
 def read_lines(data_path, domain_name):
     examples = {}
@@ -260,7 +273,7 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
 
     return train_loader, val_loader, test_loader
 
-def build_splits_clip_disentangle(opt):
+def build_splits_clip_disentangle(opt,clip_preprocess):
     source_domain = 'art_painting'
     target_domain = opt['target_domain']
     # ————构建 examples字典
@@ -269,7 +282,7 @@ def build_splits_clip_disentangle(opt):
     # target_examples, target_labeled_descriptions = read_lines_CLIP(opt['data_path'], target_domain)
     # source_examples = read_lines(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
     # target_examples = read_lines(opt['data_path'], target_domain)
-    clip_examples = read_lines_CLIP(opt['data_path'],['art_painting', 'cartoon', 'photo', 'sketch'])
+    clip_examples = read_lines_CLIP(opt['data_path'],['art_painting', 'cartoon', 'photo', 'sketch']) # 无所谓domain，有description的都用来train clip
 
     source_examples = read_lines_CLIP(opt['data_path'], [source_domain])  # opt['data_path']: "data/PACS"
     target_examples = read_lines_CLIP(opt['data_path'], [target_domain])
@@ -285,9 +298,15 @@ def build_splits_clip_disentangle(opt):
     # Build splits - we train only on the source domain (Art Painting)
     val_split_length = source_total_examples * 0.2  # 20% of the training split used for validation 验证集一共多少条数据
 
+    train_clip_examples = []
     train_examples = []
     val_examples = []
     test_examples = []
+    for category_idx, examples_list in clip_examples.items():  # key(类别id): val(图片路径, description id)
+        for i, example in enumerate(examples_list): # example (图片路径, description)
+            path, descriptions = example
+            train_clip_examples.append([path, descriptions])  # each pair is [path_to_img, description]
+
     # images [without or with] descriptions
     for category_idx, examples_list in source_examples.items():  # key(类别id): val(图片路径, description id)
         split_idx = round(source_category_ratios[category_idx] * val_split_length)  # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
@@ -325,6 +344,11 @@ def build_splits_clip_disentangle(opt):
     print("train_examples: ", len(train_examples))
     print("val_examples: ", len(val_examples))
     # Dataloaders
+    if opt['train_clip'] == 'True':
+        print("fine-tune clip examples: ", len(train_clip_examples))
+        train_clip_loader = DataLoader(PACSDatasetDomainDisentangle_train_CLIP(train_clip_examples, clip_preprocess),batch_size=opt['batch_size'],
+                              num_workers=opt['num_workers'], shuffle=True)
+
     train_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(train_examples, train_transform),batch_size=opt['batch_size'],
                               num_workers=opt['num_workers'], shuffle=True)
     val_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(val_examples, eval_transform), batch_size=opt['batch_size'],
@@ -332,5 +356,7 @@ def build_splits_clip_disentangle(opt):
     test_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(test_examples, eval_transform), batch_size=opt['batch_size'],
                              num_workers=opt['num_workers'], shuffle=False)
 
-
-    return train_loader, val_loader, test_loader#, source_labeled_descriptions, target_labeled_descriptions
+    if opt['train_clip'] == 'True':
+        return train_loader, val_loader, test_loader, train_clip_loader
+    else:
+        return train_loader, val_loader, test_loader#, source_labeled_descriptions, target_labeled_descriptions
