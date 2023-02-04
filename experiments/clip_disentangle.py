@@ -36,15 +36,15 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.cross_entropy = torch.nn.CrossEntropyLoss()
         self.rec_loss = torch.nn.MSELoss()
         # hyper parameters
-        self.alpha1 = torch.nn.Parameter(torch.tensor(0.048, device='cuda'), requires_grad=True)
-        self.alpha2 = torch.nn.Parameter(torch.tensor(0.0028, device='cuda'), requires_grad=True)
-        self.w = [3, 1, 0.5, 1]
+        self.alpha1 = 1.2
+        self.alpha2 = 0.5
+        self.w = [2, 1, 1, 1]
         # Setup optimization procedure
         params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(
-            self.model.domain_encoder.parameters()) + list(self.model.feature_extractor.parameters())
+            self.model.domain_encoder.parameters())
         self.optimizer1 = torch.optim.Adam(params1 , lr=opt['lr'])
 
-        params2 = list(self.model.domain_classifier.parameters()) + list(self.model.category_classifier.parameters())
+        params2 = list(self.model.domain_classifier.parameters()) + list(self.model.category_classifier.parameters())+ list(self.model.feature_extractor.parameters())
         self.optimizer2 = torch.optim.Adam(params2, lr=opt['lr'])
 
         self.clip_optimizer = torch.optim.Adam(self.clip_model.parameters(), lr=5e-5, betas=(0.9, 0.98), eps=1e-6, weight_decay=0.2)#Params used from paper, the lr is smaller, more safe for fine tuning to new dataset
@@ -65,7 +65,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
     def entropy_loss(self, f):  # 应该返回一个标量 最后是求和的
         # mlogf = torch.mean(f, dim=0)
         # res = -torch.mean(mlogf)
-        return torch.sum(-F.softmax(f, 1) * F.log_softmax(f, 1), 1).mean()
+        return -torch.sum(-F.softmax(f, 1) * F.log_softmax(f, 1), 1).mean()
 
     def save_checkpoint(self, path, epoch, iteration, best_accuracy, total_train_loss):
         checkpoint = {}
@@ -165,10 +165,14 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         l_class_ent_2 = self.entropy_loss(DCfcs2)  # train category_encoder 2
         l_domain_ent_1 = self.entropy_loss(Cfds1)  # train domain_encoder 1
         l_domain_ent_2 = self.entropy_loss(Cfds2)  # train domain_encoder 2
+        l_class_ent = -(l_class_ent_1 + l_class_ent_2)
+        l_domain_ent = -(l_domain_ent_1 + l_domain_ent_2)
+
 
         l_clip1 = self.clip_loss(text_feature_s, fds1)
         l_clip2 = self.clip_loss(text_feature_t, fds2)
         L_clip = l_clip1 + l_clip2
+        # print("CLIP loss", L_clip.item())
         l_rec_1 = self.rec_loss(fG1, fG_hat1)  # train reconstructor 1
         l_rec_2 = self.rec_loss(fG2, fG_hat2)  # train reconstructor 2
         L_rec = l_rec_1 + l_rec_2
@@ -177,7 +181,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
              self.w[0] * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + \
              self.w[1] * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2)
         self.optimizer1.zero_grad()
-        L1.backward(retain_graph=True)  # feature_extractor + category_encoder + domain_encoder + reconstructor的梯度
+        L1.backward(retain_graph=True)  #  category_encoder + domain_encoder + reconstructor的梯度
 
         # train [domain_classifier]
         self.freezeLayer(self.model.category_classifier, False)
@@ -193,13 +197,13 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         L2 = self.w[0] * l_class + self.w[1] * l_domain
         self.optimizer2.zero_grad()  # clean following grad: category_classifier + domain_classifier
         # category_encoder+category_classifier虽然没有计算梯度，但上一次保留了计算图，所以结果还在，这里清空只是变成0，并不是None，所以虽然requires_grad设成false 还是可能更新梯度，要在step前面从optimizer中踢出
-        L2.backward()  # domain_encoder + category_encoder + reconstructor  （用到的某个值被前面step()更新了 会有inplace operation错误)
+        L2.backward()  # feature_extractor + domain_encoder + category_encoder + reconstructor  （用到的某个值被前面step()更新了 会有inplace operation错误)
 
         self.optimizer1.step()  # update following layers:  feature_extractor + category_encoder + domain_encoder + reconstructor + alpha1 + alpha2
         self.optimizer2.step()  # update following layers： category_classifier + domain_classifier
         self.unfreezeAll()
         loss = L1 + L2
-        return loss.item()
+        return loss.item(), l_class_ent.item(), l_domain_ent.item(), L_clip.item()
 
     def validate(self, loader):
         self.clip_model.eval()
