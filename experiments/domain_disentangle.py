@@ -20,7 +20,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.nll_loss = torch.nn.NLLLoss()
         self.cross_entropy = torch.nn.CrossEntropyLoss()
         self.rec_loss = torch.nn.MSELoss()
-        self.alpha1 = 0.5
+        self.alpha1 = 1.2
         self.alpha2 = 0.5
         self.w1 = 2 #主要训练category分类器 所以他的权重高一点，其他权重低一点
         self.w2 = 1
@@ -103,13 +103,14 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.freezeLayer(self.model.category_classifier, True)
         self.freezeLayer(self.model.domain_classifier, True)
 
-        l_class_ent_1 = self.entropy_loss(DCfcs1) # train category_encoder 1
+        l_class_ent_1 = self.entropy_loss(DCfcs1) # train category_encoder 1 remove domain information from category encoder
         l_class_ent_2 = self.entropy_loss(DCfcs2) # train category_encoder 2
-        l_domain_ent_1 = self.entropy_loss(Cfds1) # train domain_encoder 1
+        l_domain_ent_1 = self.entropy_loss(Cfds1) # train domain_encoder 1 remove category information from domain encoder
         l_domain_ent_2 = self.entropy_loss(Cfds2) # train domain_encoder 2
         # l_domain_ent_1 = self.cross_entropy(Cfds1,y_s)
-        print((-l_class_ent_1 - l_class_ent_2).item(), (-l_domain_ent_1 - l_domain_ent_2).item())
-
+        # print((-l_class_ent_1 - l_class_ent_2).item(), (-l_domain_ent_1 - l_domain_ent_2).item())
+        l_class_ent = -l_class_ent_1 - l_class_ent_2
+        l_domain_ent = -l_domain_ent_1 - l_domain_ent_2
 
         l_rec_1 = self.rec_loss(fG1, fG_hat1) # train reconstructor 1
         l_rec_2 = self.rec_loss(fG2, fG_hat2) # train reconstructor 2
@@ -141,7 +142,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # loss = self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
         loss = L1+L2
         # print(self.alpha1.item(),self.alpha2.item())
-        return loss.item()
+        return loss.item(),l_class_ent.item(), l_domain_ent.item()
 
     def validate(self, loader):
         self.model.eval()  # 设置为evaluation 模式

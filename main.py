@@ -49,8 +49,10 @@ def main(opt):
         epoch = 0
         best_accuracy = 0
         total_train_loss = 0
+        tot_l_class_ent=0
+        tot_l_domain_ent = 0
 
-        # Restore last checkpoint
+    # Restore last checkpoint
         if os.path.exists(f'{opt["output_path"]}/last_checkpoint.pth'):  # 如果有checkpoint 则加载
             epoch, iteration, best_accuracy, total_train_loss = experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
         else:
@@ -91,16 +93,19 @@ def main(opt):
                 while i<len_dataloader:
                     data_source = next(data_source_iter)# next(...)
                     data_target = next(data_target_iter)# next(...)
-                    total_train_loss += experiment.train_iteration(data_source, data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
-
+                    tloss, l_class_ent, l_domain_ent = experiment.train_iteration(data_source, data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
+                    total_train_loss += tloss
+                    tot_l_class_ent += l_class_ent
+                    tot_l_domain_ent += l_domain_ent
                     if iteration % opt['print_every'] == 0:  # 每50次 输出一条当前的平均损失
                         logger1.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
                         logger2.info(f'train1_loss: {total_train_loss / (iteration + 1)}')
-
+                        print(tot_l_class_ent/ (iteration + 1), tot_l_domain_ent/ (iteration + 1))
                     if iteration % opt['validate_every'] == 0:
                         # Run validation 每100次训练 用验证集跑一次看看准确率
                         val_accuracy, val_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
-                        # print(len(validation_loader))
+                        # test_accuracy, _ = experiment.validate(test_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        # print(f'[TEST - {iteration}] | Accuracy: {(100 * test_accuracy):.2f}')
                         logger1.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         logger2.info(f'val_loss: {val_loss}')
                         if val_accuracy >= best_accuracy:
@@ -169,13 +174,16 @@ def main(opt):
             #     break
 
     # Test
-    # experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
-    experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
+    experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
     test_accuracy, _ = experiment.validate(test_loader)
     # logging.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
-    logger1.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
-    print(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
+    logger1.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (best model)')
+    print(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (best model)')
 
+    experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
+    test_accuracy, _ = experiment.validate(test_loader)
+    logger1.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (last model)')
+    print(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (last model)')
 
 def get_logger(logger_name, file, level=logging.INFO):
     l = logging.getLogger(logger_name)
