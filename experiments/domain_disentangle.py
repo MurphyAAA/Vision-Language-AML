@@ -169,6 +169,6 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
         mean_accuracy = accuracy / count
         mean_loss = loss / count
-        mean_dom_loss = dom_accuracy / count
+        mean_dom_accuracy = dom_accuracy / count
         self.model.train()
-        return mean_accuracy, mean_loss, mean_dom_loss
+        return mean_accuracy, mean_loss, mean_dom_accuracy
