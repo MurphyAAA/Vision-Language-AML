@@ -24,7 +24,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.alpha2 = 0.5
         self.w1 = 2 #主要训练category分类器 所以他的权重高一点，其他权重低一点
         self.w2 = 1
-        self.w3 = 1 # 2,1,0.5
+        self.w3 = 1 # 2,1,1
         # Setup optimization procedure
         # self.optimizer = torch.optim.Adam(list(self.model.parameters())+[self.alpha1,self.alpha2], lr=opt['lr'])
         # +[self.alpha1, self.alpha2]
