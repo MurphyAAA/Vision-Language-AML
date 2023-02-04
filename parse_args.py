@@ -7,7 +7,7 @@ def parse_arguments():
 
     parser.add_argument('--experiment', type=str, default='domain_disentangle', choices=['baseline', 'domain_disentangle', 'clip_disentangle'])
 
-    parser.add_argument('--target_domain', type=str, default='cartoon', choices=['art_painting', 'cartoon', 'sketch', 'photo'])
+    parser.add_argument('--target_domain', type=str, default='sketch', choices=['art_painting', 'cartoon', 'sketch', 'photo'])
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate.')
     parser.add_argument('--max_iterations', type=int, default=2000, help='Number of training iterations.')
     parser.add_argument('--num_epochs', type=int, default=100, help='Number of training epochs.')

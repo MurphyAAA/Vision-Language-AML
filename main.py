@@ -103,7 +103,7 @@ def main(opt):
                         # print(len(validation_loader))
                         logger1.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         logger2.info(f'val_loss: {val_loss}')
-                        if val_accuracy > best_accuracy:
+                        if val_accuracy >= best_accuracy:
                             best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', epoch, iteration,
                                                        best_accuracy, total_train_loss)
