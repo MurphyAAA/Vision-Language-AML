@@ -15,8 +15,8 @@ def setup_experiment(opt):
 
     elif opt['experiment'] == 'domain_disentangle':
         experiment = DomainDisentangleExperiment(opt)
-        train_loader, validation_loader, test_loader = build_splits_domain_disentangle(opt)
-        return experiment, train_loader, validation_loader, test_loader
+        train_loader_source, train_loader_target, validation_loader, test_loader = build_splits_domain_disentangle(opt)
+        return experiment, train_loader_source, train_loader_target, validation_loader, test_loader
 
     elif opt['experiment'] == 'clip_disentangle':
         experiment = CLIPDisentangleExperiment(opt)
@@ -35,10 +35,12 @@ def setup_experiment(opt):
 
 def main(opt):
     fine_tune_clip_flag = False
-    if opt['experiment'] == 'clip_disentangle' and opt['train_clip'] == 'True':
+    if opt['experiment'] == 'domain_disentangle':
+        experiment, train_loader_source, train_loader_target, validation_loader, test_loader = setup_experiment(opt)
+    elif opt['experiment'] == 'clip_disentangle' and opt['train_clip'] == 'True':
         experiment, train_loader, validation_loader, test_loader, train_clip_loader = setup_experiment(opt)
         fine_tune_clip_flag = True
-    else:
+    else: # baseline or (clip_disentangle && train_clip==false)
         experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
     # Skip training if '--test' flag is set
     if not opt['test']:
@@ -52,8 +54,8 @@ def main(opt):
         if os.path.exists(f'{opt["output_path"]}/last_checkpoint.pth'):  # 如果有checkpoint 则加载
             epoch, iteration, best_accuracy, total_train_loss = experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
         else:
-            logging.info(opt)
-        logging.info('——————————————————————————————————————————————————————————————————') # logging.info() 输出到日志
+            logger1.info(opt)
+        logger1.info('——————————————————————————————————————————————————————————————————') # logging.info() 输出到日志
 
         # Train loop 运行N次也只能训练一次，而不是在上次最好的基础上继续训练
         while iteration < opt['max_iterations']: # 如果target domain特也放入训练接则一轮是125次(len(train_loader)=125) 一共5000/125=40 epoch     train_loader越小迭代的epoch数量越多
@@ -81,9 +83,10 @@ def main(opt):
                     if iteration > opt['max_iterations']:
                         break
             elif opt['experiment'] == 'domain_disentangle':
-                len_dataloader = min(len(train_loader), len(test_loader))
-                data_source_iter = iter(train_loader)
-                data_target_iter = iter(test_loader)
+                len_dataloader = min(len(train_loader_source), len(train_loader_target))
+                data_source_iter = iter(train_loader_source)
+                data_target_iter = iter(train_loader_target)
+                # data_target_iter = iter(test_loader)
                 i = 0
                 while i<len_dataloader:
                     data_source = next(data_source_iter)# next(...)
@@ -95,7 +98,7 @@ def main(opt):
                         logger2.info(f'train1_loss: {total_train_loss / (iteration + 1)}')
 
                     if iteration % opt['validate_every'] == 0:
-                        # Run validation
+                        # Run validation 每100次训练 用验证集跑一次看看准确率
                         val_accuracy, val_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
                         # print(len(validation_loader))
                         logger1.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')

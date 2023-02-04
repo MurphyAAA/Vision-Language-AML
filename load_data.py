@@ -218,30 +218,37 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
     source_total_examples = sum(source_category_ratios.values())  # source domain一共多少张图
     source_category_ratios = {category_idx: c / source_total_examples for category_idx, c in source_category_ratios.items()}  # source domain 中各个类别图片数据占总图数的比例 e.g. dog占18.5% elephant:12.45% ...
 
+    # target_category_ratios = {category_idx: len(examples_list) for category_idx, examples_list in target_examples.items()}  # 每个类别有多少张图， dict.items()返回字典的键值对
+    # target_total_examples = sum(target_category_ratios.values())  # source domain一共多少张图
+    # target_category_ratios = {category_idx: c / target_total_examples for category_idx, c in target_category_ratios.items()}  # source domain 中各个类别图片数据占总图数的比例 e.g. dog占18.5% elephant:12.45% ...
+
     # Build splits - we train only on the source domain (Art Painting)
     val_split_length = source_total_examples * 0.2  # 20% of the training split used for validation 验证集一共多少条数据
+    # val_split_length2 = target_total_examples * 0.2
 
-    train_examples = []
-    val_examples = []
+    train_examples_source = [] # 从source domain来的，有category
+    train_examples_target=[]   # 从target domain来的，没有category ，只有domain label，只能用来训练domain clf
+    val_examples = [] # 用于验证category classifier效果，所以必须要有category label，只能是从source domain来
     test_examples = []
 
     for category_idx, examples_list in source_examples.items():  # key(类别id): val(图片路径)
         split_idx = round(source_category_ratios[category_idx] * val_split_length)  # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
         for i, example in enumerate(examples_list):
             if i > split_idx:
-                train_examples.append([example, category_idx, DOMAINS[source_domain]])  # each pair is [path_to_img, class_label]
+                train_examples_source.append([example, category_idx, DOMAINS[source_domain]])  # each pair is [path_to_img, class_label]
             else:
                 val_examples.append([example, category_idx, DOMAINS[source_domain]])  # each pair is [path_to_img, class_label]
 
     for category_idx, examples_list in target_examples.items():
-        # split_idx = round(source_category_ratios[category_idx] * val_split_length) # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
-
-        for example in examples_list:
-            # if i>split_idx:
-            # train_examples.append([example, -1, DOMAINS[target_domain]])
+        # split_idx = round(target_category_ratios[category_idx] * val_split_length2)
+        for i, example in enumerate(examples_list):
+            # if i > split_idx:
+            train_examples_target.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
             # else:
-            #     val_examples.append([example, -1, DOMAINS[target_domain]])
+            #     val_examples.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
+
             test_examples.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
+
 ### ______
 
     # Transforms
@@ -261,17 +268,21 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
         T.ToTensor(),
         normalize
     ])
-    print("train_examples: ", len(train_examples))
+    print("train_examples_source: ", len(train_examples_source))
+    print("train_examples_target: ", len(train_examples_target))
     print("val_examples: ", len(val_examples))
+    print("test_examples: ", len(test_examples))
     # Dataloaders
-    train_loader = DataLoader(PACSDatasetDomainDisentangle(train_examples, train_transform), batch_size=opt['batch_size'],
+    train_loader_source = DataLoader(PACSDatasetDomainDisentangle(train_examples_source, train_transform), batch_size=opt['batch_size'],
+                              num_workers=opt['num_workers'], shuffle=True)
+    train_loader_target = DataLoader(PACSDatasetDomainDisentangle(train_examples_target, train_transform), batch_size=opt['batch_size'],
                               num_workers=opt['num_workers'], shuffle=True)
     val_loader = DataLoader(PACSDatasetDomainDisentangle(val_examples, eval_transform), batch_size=opt['batch_size'],
                             num_workers=opt['num_workers'], shuffle=False)
     test_loader = DataLoader(PACSDatasetDomainDisentangle(test_examples, eval_transform), batch_size=opt['batch_size'],
                              num_workers=opt['num_workers'], shuffle=False)
 
-    return train_loader, val_loader, test_loader
+    return train_loader_source, train_loader_target, val_loader, test_loader
 
 def build_splits_clip_disentangle(opt,clip_preprocess):
     source_domain = 'art_painting'

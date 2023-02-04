@@ -24,12 +24,12 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.alpha2 = torch.nn.Parameter(torch.tensor(0.028,device='cuda'), requires_grad=True)
         self.w1 = 2 #主要训练category分类器 所以他的权重高一点，其他权重低一点
         self.w2 = 1
-        self.w3 = 1
+        self.w3 = 1 # 2,1,0.5
         # Setup optimization procedure
         # self.optimizer = torch.optim.Adam(list(self.model.parameters())+[self.alpha1,self.alpha2], lr=opt['lr'])
         # +[self.alpha1, self.alpha2]
-        self.optimizer1 = torch.optim.Adam(list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters()) + list(self.model.feature_extractor.parameters()),lr=opt['lr'] )
-        self.optimizer2 = torch.optim.Adam(list(self.model.category_classifier.parameters()) + list(self.model.domain_classifier.parameters()),lr=opt['lr'])
+        self.optimizer1 = torch.optim.Adam(list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters()) ,lr=opt['lr'] )
+        self.optimizer2 = torch.optim.Adam(list(self.model.category_classifier.parameters()) + list(self.model.domain_classifier.parameters())+ list(self.model.feature_extractor.parameters()),lr=opt['lr'])
         # print("model parameters: ",self.model.parameters())
         # print("criterion parameters: ",self.criterion.parameters())
     def entropy_loss(self, f):
