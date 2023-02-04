@@ -142,13 +142,14 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # loss = self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
         loss = L1+L2
         # print(self.alpha1.item(),self.alpha2.item())
-        return loss.item(),l_class_ent.item(), l_domain_ent.item()
+        return loss.item(),l_class_ent.item(), l_domain_ent.item(), l_class.item(), l_domain.item(), L_rec.item()
 
     def validate(self, loader):
         self.model.eval()  # 设置为evaluation 模式
         accuracy = 0
         count = 0
         loss = 0
+        dom_accuracy = 0
         with torch.no_grad():  # 禁用梯度计算，即使torch.tensor(xxx,requires_grad = True) 使用.requires_grad()也会返回False
             for x, y, yd in loader:  # type(x) tensor
 
@@ -161,10 +162,13 @@ class DomainDisentangleExperiment: # See point 2. of the project
                 loss += self.cross_entropy(Cfcs, y)
 
                 pred = torch.argmax(Cfcs, dim=-1)
+                dom_pred = torch.argmax(DCfds, dim=-1)
                 accuracy += (pred == y).sum().item()
+                dom_accuracy += (dom_pred == yd).sum().item()
                 count += x.size(0)
 
         mean_accuracy = accuracy / count
         mean_loss = loss / count
+        mean_dom_loss = dom_accuracy / count
         self.model.train()
-        return mean_accuracy, mean_loss
+        return mean_accuracy, mean_loss, mean_dom_loss

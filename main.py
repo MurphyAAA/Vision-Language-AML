@@ -51,6 +51,9 @@ def main(opt):
         total_train_loss = 0
         tot_l_class_ent=0
         tot_l_domain_ent = 0
+        tot_l_class = 0
+        tot_l_domain = 0
+        tot_l_rec = 0
 
     # Restore last checkpoint
         if os.path.exists(f'{opt["output_path"]}/last_checkpoint.pth'):  # 如果有checkpoint 则加载
@@ -93,21 +96,31 @@ def main(opt):
                 while i<len_dataloader:
                     data_source = next(data_source_iter)# next(...)
                     data_target = next(data_target_iter)# next(...)
-                    tloss, l_class_ent, l_domain_ent = experiment.train_iteration(data_source, data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
+                    tloss, l_class_ent, l_domain_ent,l_class, l_domain, l_rec = experiment.train_iteration(data_source, data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
                     total_train_loss += tloss
                     tot_l_class_ent += l_class_ent
                     tot_l_domain_ent += l_domain_ent
+                    tot_l_class += l_class
+                    tot_l_domain += l_domain
+                    tot_l_rec += l_rec
                     if iteration % opt['print_every'] == 0:  # 每50次 输出一条当前的平均损失
                         logger1.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
-                        logger2.info(f'train1_loss: {total_train_loss / (iteration + 1)}')
+                        logger2.info(f'train_loss: {total_train_loss / (iteration + 1)}')
+                        logger2.info(f'class_ent_loss: {tot_l_class_ent / (iteration + 1)}')
+                        logger2.info(f'domain_ent_loss: {tot_l_domain_ent / (iteration + 1)}')
+                        logger2.info(f'class_loss: {tot_l_class / (iteration + 1)}')
+                        logger2.info(f'domain_loss: {tot_l_domain / (iteration + 1)}')
+                        logger2.info(f'rec_loss: {tot_l_rec / (iteration + 1)}')
                         print(tot_l_class_ent/ (iteration + 1), tot_l_domain_ent/ (iteration + 1))
                     if iteration % opt['validate_every'] == 0:
                         # Run validation 每100次训练 用验证集跑一次看看准确率
-                        val_accuracy, val_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        val_accuracy, val_loss , mean_dom_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
                         # test_accuracy, _ = experiment.validate(test_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
                         # print(f'[TEST - {iteration}] | Accuracy: {(100 * test_accuracy):.2f}')
                         logger1.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         logger2.info(f'val_loss: {val_loss}')
+                        logger2.info(f'dom_acc: {mean_dom_loss}')
+                        logger2.info(f'val_acc: {val_accuracy}')
                         if val_accuracy >= best_accuracy:
                             best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', epoch, iteration,
