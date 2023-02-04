@@ -100,9 +100,11 @@ class DomainDisentangleModel(nn.Module):
         x = self.feature_extractor(x) # 没有 category label的也正常参加处理，只是计算loss，更新梯度时排除掉
         fcs = self.category_encoder(x)
         fds = self.domain_encoder(x)
+
         # need to return
         fG_hat = torch.cat((fds,fcs),dim=1)
         fG_hat = self.reconstructor(fG_hat)
+
         Cfcs = self.category_classifier(fcs) # 经过classifier之后再传出去，nn自带的CrossEntropy本身包括了logSoftmax的计算
         DCfcs = self.domain_classifier(fcs) #??????????? 这个要放外面算？？？，要冻住DC，反向传播不能更新domain_classifier
 
@@ -142,12 +144,9 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
             nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
             nn.ReLU()
         )
-        self.category_classifier = nn.Sequential(
-            nn.Linear(512,7)
-        )
-        self.domain_classifier = nn.Sequential(
-            nn.Linear(512,4)
-        )
+        self.category_classifier = nn.Linear(512,7)
+        self.domain_classifier = nn.Linear(512,4)
+
         self.reconstructor = nn.Sequential(
             nn.Linear(1024, 512),
             # nn.BatchNorm1d(512),

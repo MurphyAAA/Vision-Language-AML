@@ -119,7 +119,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
              self.w1 * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + \
              self.w2 * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2 )
         self.optimizer1.zero_grad()
-        L1.backward(retain_graph=True) # 计算了feature_extractor + category_encoder + domain_encoder + reconstructor的梯度
+        L1.backward(retain_graph=True) # 计算了category_encoder + domain_encoder + reconstructor的梯度
         # self.optimizer.param_groups[0]['params'] = [p for p in self.model.parameters() if p.requires_grad]
 
         self.freezeLayer(self.model.category_classifier, False)
@@ -134,7 +134,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         L2 = self.w1 * l_class + self.w2 * l_domain
         self.optimizer2.zero_grad() # 清空 category_classifier + domain_classifier
         # category_encoder+category_classifier虽然没有计算梯度，但上一次保留了计算图，所以结果还在，这里清空只是变成0，并不是None，所以虽然requires_grad设成false 还是可能更新梯度，要在step前面从optimizer中踢出
-        L2.backward()  # domain_encoder_category_encoder+reconstructor  （用到的某个值被前面step()更新了 会有inplace operation错误)
+        L2.backward()  #feature_extractor +  domain_encoder_category_encoder+reconstructor  （用到的某个值被前面step()更新了 会有inplace operation错误)
         # self.optimizer.param_groups[0]['params'] = [p for p in self.model.parameters() if p.requires_grad]
         self.optimizer1.step()  # 更新了:  feature_extractor + category_encoder + domain_encoder + reconstructor + alpha1 + alpha2
         self.optimizer2.step()  # 更新了： category_classifier + domain_classifier
