@@ -20,8 +20,8 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.nll_loss = torch.nn.NLLLoss()
         self.cross_entropy = torch.nn.CrossEntropyLoss()
         self.rec_loss = torch.nn.MSELoss()
-        self.alpha1 = torch.nn.Parameter(torch.tensor(0.5,device='cuda'), requires_grad=True)  # 有梯度消失的问题，所以这个权重学习成负数了
-        self.alpha2 = torch.nn.Parameter(torch.tensor(0.5,device='cuda'), requires_grad=True)
+        self.alpha1 = 0.5
+        self.alpha2 = 0.5
         self.w1 = 2 #主要训练category分类器 所以他的权重高一点，其他权重低一点
         self.w2 = 1
         self.w3 = 1 # 2,1,0.5

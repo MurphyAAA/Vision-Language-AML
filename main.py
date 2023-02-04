@@ -169,8 +169,8 @@ def main(opt):
             #     break
 
     # Test
-    experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
-    # experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
+    # experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
+    experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
     test_accuracy, _ = experiment.validate(test_loader)
     # logging.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
     logger1.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
