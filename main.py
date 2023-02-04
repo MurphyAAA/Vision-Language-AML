@@ -188,13 +188,13 @@ def main(opt):
 
     # Test
     experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
-    test_accuracy, _ = experiment.validate(test_loader)
+    test_accuracy, _ , _  = experiment.validate(test_loader)
     # logging.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
     logger1.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (best model)')
     print(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (best model)')
 
     experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
-    test_accuracy, _ = experiment.validate(test_loader)
+    test_accuracy, _ ,_= experiment.validate(test_loader)
     logger1.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (last model)')
     print(f'[TEST] Accuracy: {(100 * test_accuracy):.2f} (last model)')
 
