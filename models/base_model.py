@@ -55,7 +55,7 @@ class DomainDisentangleModel(nn.Module):
     def __init__(self):
         super(DomainDisentangleModel, self).__init__()
         self.feature_extractor = FeatureExtractor()
-
+        self.p = 0.3
         # domain_encoder, category_encoder都是 Disentangler()，两个encoder分开写了
         # 变成只有domain信息的vector
         self.domain_encoder = nn.Sequential(
@@ -69,7 +69,8 @@ class DomainDisentangleModel(nn.Module):
 
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Dropout(self.p)
         )
 
         # 变成只有category信息的vector
@@ -84,7 +85,8 @@ class DomainDisentangleModel(nn.Module):
 
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Dropout(self.p)
         )
 
         self.domain_classifier = nn.Linear(512,2)
