@@ -115,12 +115,13 @@ def main(opt):
                     if iteration % opt['validate_every'] == 0:
                         # Run validation 每100次训练 用验证集跑一次看看准确率
                         val_accuracy, val_loss , mean_dom_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
-                        # test_accuracy, _ = experiment.validate(test_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
-                        # print(f'[TEST - {iteration}] | Accuracy: {(100 * test_accuracy):.2f}')
+                        test_accuracy, _,_ = experiment.validate(test_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        print(f'[TEST - {iteration}] | Accuracy: {(100 * test_accuracy):.2f}')
                         logger1.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         logger2.info(f'val_loss: {val_loss}')
                         logger2.info(f'dom_acc: {mean_dom_loss}')
                         logger2.info(f'val_acc: {val_accuracy}')
+                        print(f'dom_acc: {(100 * mean_dom_loss):.2f}')
                         if val_accuracy >= best_accuracy:
                             best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', epoch, iteration,
