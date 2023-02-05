@@ -235,19 +235,19 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
         split_idx = round(source_category_ratios[category_idx] * val_split_length)  # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
         for i, example in enumerate(examples_list):
             if i > split_idx:
-                train_examples_source.append([example, category_idx, DOMAINS[source_domain]])  # each pair is [path_to_img, class_label]
+                train_examples_source.append([example, category_idx, 0])  # each pair is [path_to_img, class_label]
             else:
-                val_examples.append([example, category_idx, DOMAINS[source_domain]])  # each pair is [path_to_img, class_label]
+                val_examples.append([example, category_idx, 0])  # each pair is [path_to_img, class_label]
 
     for category_idx, examples_list in target_examples.items():
         # split_idx = round(target_category_ratios[category_idx] * val_split_length2)
         for i, example in enumerate(examples_list):
             # if i > split_idx:
-            train_examples_target.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
+            train_examples_target.append([example, category_idx, 1])  # each pair is [path_to_img, class_label]
             # else:
             #     val_examples.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
 
-            test_examples.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
+            test_examples.append([example, category_idx, 1])  # each pair is [path_to_img, class_label]
 
 ### ______
 
@@ -280,7 +280,7 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
     val_loader = DataLoader(PACSDatasetDomainDisentangle(val_examples, eval_transform), batch_size=opt['batch_size'],
                             num_workers=opt['num_workers'], shuffle=False)
     test_loader = DataLoader(PACSDatasetDomainDisentangle(test_examples, eval_transform), batch_size=opt['batch_size'],
-                             num_workers=opt['num_workers'], shuffle=False)
+                             num_workers=opt['num_workers'], shuffle=True)
 
     return train_loader_source, train_loader_target, val_loader, test_loader
 

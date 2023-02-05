@@ -98,6 +98,9 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # feature_extractor, domain_encoder, category_encoder, domain_classifier, category_classifier, reconstructor
         fG1, fG_hat1, Cfcs1, DCfcs1, DCfds1, Cfds1 = self.model(x_s)
         fG2, fG_hat2, _, DCfcs2, DCfds2, Cfds2 = self.model(x_t)
+        # x = torch.cat((x_s,x_t),dim=0)
+        # yd = torch.cat((yd_s,yd_t),dim=0)
+        # fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x)
 
         # train reconstructor + category_encoder + domain_encoder
         self.freezeLayer(self.model.category_classifier, True)
@@ -105,9 +108,10 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
         l_class_ent_1 = self.entropy_loss(DCfcs1) # train category_encoder 1 remove domain information from category encoder
         l_class_ent_2 = self.entropy_loss(DCfcs2) # train category_encoder 2
+        # l_class_ent = self.entropy_loss(DCfcs)
         l_domain_ent_1 = self.entropy_loss(Cfds1) # train domain_encoder 1 remove category information from domain encoder
         l_domain_ent_2 = self.entropy_loss(Cfds2) # train domain_encoder 2
-        # l_domain_ent_1 = self.cross_entropy(Cfds1,y_s)
+        # l_domain_ent = self.entropy_loss(Cfds)
         # print((-l_class_ent_1 - l_class_ent_2).item(), (-l_domain_ent_1 - l_domain_ent_2).item())
         l_class_ent = -l_class_ent_1 - l_class_ent_2
         l_domain_ent = -l_domain_ent_1 - l_domain_ent_2
@@ -115,9 +119,10 @@ class DomainDisentangleExperiment: # See point 2. of the project
         l_rec_1 = self.rec_loss(fG1, fG_hat1) # train reconstructor 1
         l_rec_2 = self.rec_loss(fG2, fG_hat2) # train reconstructor 2
         L_rec = l_rec_1 + l_rec_2
+        # L_rec = self.rec_loss(fG,fG_hat)
         L1 = self.w3 * L_rec + \
              self.w1 * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + \
-             self.w2 * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2 )
+             self.w2 * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2)
         self.optimizer1.zero_grad()
         L1.backward(retain_graph=True) # 计算了category_encoder + domain_encoder + reconstructor的梯度
         # self.optimizer.param_groups[0]['params'] = [p for p in self.model.parameters() if p.requires_grad]
@@ -129,12 +134,14 @@ class DomainDisentangleExperiment: # See point 2. of the project
         l_domain_1 = self.cross_entropy(DCfds1, yd_s)
         l_domain_2 = self.cross_entropy(DCfds2, yd_t)
         l_domain = l_domain_1 + l_domain_2
+        # l_domain = self.cross_entropy(DCfds,yd)
         # train [category_classifier]
         l_class = self.cross_entropy(Cfcs1, y_s)
+        # l_class = self.cross_entropy(Cfcs[:len(y_s)],y_s)
         L2 = self.w1 * l_class + self.w2 * l_domain
         self.optimizer2.zero_grad() # 清空 category_classifier + domain_classifier
         # category_encoder+category_classifier虽然没有计算梯度，但上一次保留了计算图，所以结果还在，这里清空只是变成0，并不是None，所以虽然requires_grad设成false 还是可能更新梯度，要在step前面从optimizer中踢出
-        L2.backward()  #feature_extractor +  domain_encoder_category_encoder+reconstructor  （用到的某个值被前面step()更新了 会有inplace operation错误)
+        L2.backward()  # 用到的某个值被前面step()更新了 会有inplace operation错误)
         # self.optimizer.param_groups[0]['params'] = [p for p in self.model.parameters() if p.requires_grad]
         self.optimizer1.step()  # 更新了:  feature_extractor + category_encoder + domain_encoder + reconstructor + alpha1 + alpha2
         self.optimizer2.step()  # 更新了： category_classifier + domain_classifier
@@ -156,7 +163,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
                 y = y.to(self.device)
                 x = x.to(self.device)
                 yd = yd.to(self.device)
-
+                # print(x.size(),y.size())
                 fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x)
 
                 loss += self.cross_entropy(Cfcs, y)

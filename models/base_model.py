@@ -87,12 +87,11 @@ class DomainDisentangleModel(nn.Module):
             nn.ReLU()
         )
 
-        self.domain_classifier = nn.Linear(512,4)
+        self.domain_classifier = nn.Linear(512,2)
         self.category_classifier = nn.Linear(512,7)
 
         self.reconstructor = nn.Sequential(
-            nn.Linear(1024,512),
-            nn.ReLU()
+            nn.Linear(1024,512)
         )
 
     def forward(self, x): # xd包含source+target domain的图
