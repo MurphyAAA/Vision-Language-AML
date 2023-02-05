@@ -273,14 +273,14 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
     print("val_examples: ", len(val_examples))
     print("test_examples: ", len(test_examples))
     # Dataloaders
-    train_loader_source = DataLoader(PACSDatasetDomainDisentangle(train_examples_source, train_transform), batch_size=opt['batch_size']//2,
+    train_loader_source = DataLoader(PACSDatasetDomainDisentangle(train_examples_source, train_transform), batch_size=opt['batch_size'],
                               num_workers=opt['num_workers'], shuffle=True)
-    train_loader_target = DataLoader(PACSDatasetDomainDisentangle(train_examples_target, train_transform), batch_size=opt['batch_size']//2,
+    train_loader_target = DataLoader(PACSDatasetDomainDisentangle(train_examples_target, train_transform), batch_size=opt['batch_size'],
                               num_workers=opt['num_workers'], shuffle=True)
-    val_loader = DataLoader(PACSDatasetDomainDisentangle(val_examples, eval_transform), batch_size=opt['batch_size'],
+    val_loader = DataLoader(PACSDatasetDomainDisentangle(val_examples, eval_transform), batch_size=opt['batch_size']*2,
                             num_workers=opt['num_workers'], shuffle=False)
-    test_loader = DataLoader(PACSDatasetDomainDisentangle(test_examples, eval_transform), batch_size=opt['batch_size'],
-                             num_workers=opt['num_workers'], shuffle=False)
+    test_loader = DataLoader(PACSDatasetDomainDisentangle(test_examples, eval_transform), batch_size=opt['batch_size']*2,
+                             num_workers=opt['num_workers'], shuffle=True)
 
     return train_loader_source, train_loader_target, val_loader, test_loader
 

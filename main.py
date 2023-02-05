@@ -111,7 +111,7 @@ def main(opt):
                         logger2.info(f'class_loss: {tot_l_class / (iteration + 1)}')
                         logger2.info(f'domain_loss: {tot_l_domain / (iteration + 1)}')
                         logger2.info(f'rec_loss: {tot_l_rec / (iteration + 1)}')
-                        print(tot_l_class_ent/ (iteration + 1), tot_l_domain_ent/ (iteration + 1))
+                        # print(tot_l_class_ent/ (iteration + 1), tot_l_domain_ent/ (iteration + 1))
                     if iteration % opt['validate_every'] == 0:
                         # Run validation 每100次训练 用验证集跑一次看看准确率
                         val_accuracy, val_loss , mean_dom_loss = experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
@@ -121,7 +121,7 @@ def main(opt):
                         logger2.info(f'val_loss: {val_loss}')
                         logger2.info(f'dom_acc: {mean_dom_loss}')
                         logger2.info(f'val_acc: {val_accuracy}')
-                        print(f'dom_acc: {(100 * mean_dom_loss):.2f}')
+                        # print(f'dom_acc: {(100 * mean_dom_loss):.2f}')
                         if val_accuracy >= best_accuracy:
                             best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', epoch, iteration,
