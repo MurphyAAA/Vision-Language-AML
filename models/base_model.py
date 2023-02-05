@@ -149,7 +149,7 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
             nn.Dropout(self.p)
         )
         self.category_classifier = nn.Linear(512,7)
-        self.domain_classifier = nn.Linear(512,4)
+        self.domain_classifier = nn.Linear(512,2)
 
         self.reconstructor = nn.Sequential(
             nn.Linear(1024, 512),

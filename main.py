@@ -155,7 +155,7 @@ def main(opt):
                             if clip_iteration > opt['clip_iteration']:
                                 break
                     experiment.freeze_clip()
-                    experiment.clip_model.float()
+                    experiment.clip_model.float() # back to fp32 for later training
                     print("finish clip pre-training ",clip_iteration)
                 len_dataloader = min(len(train_loader), len(test_loader)) # 数据少 扫一遍数据跑的iteration少
                 data_source_iter = iter(train_loader)

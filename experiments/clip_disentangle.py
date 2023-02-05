@@ -32,7 +32,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
 
         # Loss functions
         self.clip_loss = torch.nn.MSELoss()
-        self.nll_loss = torch.nn.NLLLoss()
+        # self.nll_loss = torch.nn.NLLLoss()
         self.cross_entropy = torch.nn.CrossEntropyLoss()
         self.rec_loss = torch.nn.MSELoss()
         # hyper parameters
@@ -40,8 +40,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.alpha2 = 0.5
         self.w = [2, 1, 1, 1]
         # Setup optimization procedure
-        params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(
-            self.model.domain_encoder.parameters())
+        params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters())
         self.optimizer1 = torch.optim.Adam(params1 , lr=opt['lr'])
 
         params2 = list(self.model.domain_classifier.parameters()) + list(self.model.category_classifier.parameters())+ list(self.model.feature_extractor.parameters())

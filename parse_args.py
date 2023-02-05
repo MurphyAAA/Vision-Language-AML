@@ -5,7 +5,7 @@ def parse_arguments():
     # 使用控制台运行程序时 可以通过 python main.py --参数 val  来设置这些值  e.g.  python main.py --target_domain art_painting
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--experiment', type=str, default='domain_disentangle', choices=['baseline', 'domain_disentangle', 'clip_disentangle'])
+    parser.add_argument('--experiment', type=str, default='clip_disentangle', choices=['baseline', 'domain_disentangle', 'clip_disentangle'])
 
     parser.add_argument('--target_domain', type=str, default='photo', choices=['art_painting', 'cartoon', 'sketch', 'photo'])
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate.')

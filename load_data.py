@@ -324,14 +324,14 @@ def build_splits_clip_disentangle(opt,clip_preprocess):
         for i, example in enumerate(examples_list): # example (图片路径, description)
             path, descriptions = example
             if i > split_idx:
-                train_examples.append([path, category_idx, DOMAINS[source_domain], descriptions])  # each pair is [path_to_img, class_label, description]
+                train_examples.append([path, category_idx, 0, descriptions])  # each pair is [path_to_img, class_label, description]
             else:
-                val_examples.append([path, category_idx, DOMAINS[source_domain], descriptions])  # each pair is [path_to_img, class_label, description]
+                val_examples.append([path, category_idx, 0, descriptions])  # each pair is [path_to_img, class_label, description]
 
     for category_idx, examples_list in target_examples.items():
         for example in examples_list:
             path, descriptions = example
-            test_examples.append([path, category_idx, DOMAINS[target_domain], descriptions])  # each pair is [path_to_img, class_label, description]
+            test_examples.append([path, category_idx, 1, descriptions])  # each pair is [path_to_img, class_label, description]
 
     ### ______
 
@@ -365,7 +365,7 @@ def build_splits_clip_disentangle(opt,clip_preprocess):
     val_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(val_examples, eval_transform), batch_size=opt['batch_size'],
                             num_workers=opt['num_workers'], shuffle=False)
     test_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(test_examples, eval_transform), batch_size=opt['batch_size'],
-                             num_workers=opt['num_workers'], shuffle=False)
+                             num_workers=opt['num_workers'], shuffle=True)
 
     if opt['train_clip'] == 'True':
         return train_loader, val_loader, test_loader, train_clip_loader
