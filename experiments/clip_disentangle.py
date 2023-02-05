@@ -203,7 +203,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.optimizer2.step()  # update following layers： category_classifier + domain_classifier
         self.unfreezeAll()
         loss = L1 + L2
-        return loss.item(), l_class_ent.item(), l_domain_ent.item(), L_clip.item()
+        return loss.item(),l_class.item(), l_class_ent.item(), l_domain.item(), l_domain_ent.item(), L_rec.item(), L_clip.item()
 
     def validate(self, loader):
         self.clip_model.eval()
@@ -211,6 +211,8 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         accuracy = 0
         count = 0
         loss = 0
+        dom_acc = 0
+
         with torch.no_grad():  # 禁用梯度计算，即使torch.tensor(xxx,requires_grad = True) 使用.requires_grad()也会返回False
             for x, y, _, _ in loader:  # type(x) tensor x,y,yd,description
 
@@ -218,14 +220,17 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
                 x = x.to(self.device)
                 # yd = yd.to(self.device)
 
-                _, _, Cfcs, _, _, _,_ = self.model(x)
+                _, _, Cfcs, _, _, DCfds,_ = self.model(x)
 
                 loss += self.cross_entropy(Cfcs, y)
+                dom_pred = torch.argmax(DCfds, dim=-1)
                 pred = torch.argmax(Cfcs, dim=-1)
                 accuracy += (pred == y).sum().item()
+                dom_acc += (dom_pred == y).sum().item()
                 count += x.size(0)
 
         mean_accuracy = accuracy / count
         mean_loss = loss / count
+        mean_dom_acc = dom_acc / count
         self.model.train()
-        return mean_accuracy, mean_loss
+        return mean_accuracy, mean_loss,mean_dom_acc

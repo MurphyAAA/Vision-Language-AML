@@ -119,6 +119,7 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
     def __init__(self):
         super(CLIPDisentangleModel, self).__init__()
         self.feature_extractor = FeatureExtractor()
+        self.p = 0.3
         self.category_encoder= nn.Sequential(
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),
@@ -130,7 +131,8 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
 
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Dropout(self.p)
         )
         self.domain_encoder = nn.Sequential(
             nn.Linear(512, 512),
@@ -143,15 +145,14 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
 
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Dropout(self.p)
         )
         self.category_classifier = nn.Linear(512,7)
         self.domain_classifier = nn.Linear(512,4)
 
         self.reconstructor = nn.Sequential(
             nn.Linear(1024, 512),
-            # nn.BatchNorm1d(512),
-            nn.ReLU(),
         )
 
     def forward(self, x):
