@@ -132,18 +132,22 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         return total_loss.item()
     def train_iteration(self, data_source, data_target):
 
-        x_s, y_s, yd_s, desc_s = data_source
+        x_s, y_s, yd_s, desc_s = data_source  # desc可能是-1
         x_t, _, yd_t, desc_t = data_target
+
+        i1 = [i for i in range(len(desc_s)) if desc_s[i] != '-1'] # desc_s中值不是-1的索引
+        i2 = [i for i in range(len(desc_t)) if desc_t[i] != '-1'] # desc_t中值不是-1的索引
 
         x_s = x_s.to(self.device)
         y_s = y_s.to(self.device)
         yd_s = yd_s.to(self.device)
         textToken_s = clip.tokenize(desc_s,truncate=True).to(self.device)
+        textToken_s = textToken_s[i1]  # description有效的行
 
         x_t = x_t.to(self.device)  # [32,3,224,224] 32是一个batch中图片数量
         yd_t = yd_t.to(self.device)
         textToken_t = clip.tokenize(desc_t,truncate=True).to(self.device)
-
+        textToken_t = textToken_t[i2]
 
         # print(len(y_s), len(desc_s), len(desc_t))
         # feature_extractor, domain_encoder, category_encoder, domain_classifier, category_classifier, reconstructor
@@ -167,9 +171,15 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         l_class_ent = -(l_class_ent_1 + l_class_ent_2)
         l_domain_ent = -(l_domain_ent_1 + l_domain_ent_2)
 
-
-        l_clip1 = self.clip_loss(text_feature_s, fds1)
-        l_clip2 = self.clip_loss(text_feature_t, fds2)
+        # fds1 = fds1[i1]
+        if len(i1) >0:
+            l_clip1 = self.clip_loss(text_feature_s, fds1[i1])
+        else:
+            l_clip1 = 0
+        if len(i2) > 0:
+            l_clip2 = self.clip_loss(text_feature_t, fds2[i2])
+        else:
+            l_clip2 = 0
         L_clip = l_clip1 + l_clip2
         # print("CLIP loss", L_clip.item())
         l_rec_1 = self.rec_loss(fG1, fG_hat1)  # train reconstructor 1
@@ -213,19 +223,19 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         dom_acc = 0
 
         with torch.no_grad():  # 禁用梯度计算，即使torch.tensor(xxx,requires_grad = True) 使用.requires_grad()也会返回False
-            for x, y, _, _ in loader:  # type(x) tensor x,y,yd,description
+            for x, y, yd, _ in loader:  # type(x) tensor x,y,yd,description
 
                 y = y.to(self.device)
                 x = x.to(self.device)
-                # yd = yd.to(self.device)
+                yd = yd.to(self.device)
 
-                _, _, Cfcs, _, _, DCfds,_ = self.model(x)
+                _, _, Cfcs, _, DCfds, _,_ = self.model(x)
 
                 loss += self.cross_entropy(Cfcs, y)
                 dom_pred = torch.argmax(DCfds, dim=-1)
                 pred = torch.argmax(Cfcs, dim=-1)
                 accuracy += (pred == y).sum().item()
-                dom_acc += (dom_pred == y).sum().item()
+                dom_acc += (dom_pred == yd).sum().item()
                 count += x.size(0)
 
         mean_accuracy = accuracy / count

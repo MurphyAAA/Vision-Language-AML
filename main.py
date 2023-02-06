@@ -174,8 +174,7 @@ def main(opt):
                     tot_l_rec += L_rec
 
                     if iteration % opt['print_every'] == 0:  # 每50次 输出一条当前的平均损失
-                        print(tot_l_class_ent / (iteration + 1), tot_l_domain_ent / (iteration + 1),
-                              tot_l_clip / (iteration + 1))
+                        print(tot_l_class_ent / (iteration + 1), tot_l_domain_ent / (iteration + 1), tot_l_clip / (iteration + 1))
                         logger1.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
                         logger2.info(f'train_loss: {total_train_loss / (iteration + 1)}')
                         logger2.info(f'class_ent_loss: {tot_l_class_ent / (iteration + 1)}')
