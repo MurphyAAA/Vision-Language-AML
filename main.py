@@ -140,16 +140,22 @@ def main(opt):
                 # 先 手动预训练CLIP 用所有domain的作为数据集，而不仅仅是source domain了
                 if opt['train_clip'] =='True' and fine_tune_clip_flag == True: # 需要手动训练clip，且还没训练过
                     fine_tune_clip_flag = False
+                    os.makedirs(f'{opt["output_path"]}/clip_model', exist_ok=True)
+                    # print(f'{opt["output_path"]}/clip_model')
                     clip_iteration = 0
+                    clip_tot_loss=0
+                    if os.path.exists(f'{opt["output_path"]}/clip_model/last_checkpoint.pth'):  # 如果有checkpoint 则加载
+                        clip_iteration, clip_tot_loss = experiment.load_clip_checkpoint(f'{opt["output_path"]}/clip_model/last_checkpoint.pth')
                     print("fine-tune clip")
                     experiment.unfreeze_clip()
-                    clip_tot_loss=0
                     while clip_iteration < opt['clip_iteration']:
                         for data in train_clip_loader:
                             clip_tot_loss+=experiment.clip_train_iteration(data)
                             if clip_iteration % opt['print_every'] == 0:
                                 print(f'[CLIP TRAIN - {clip_iteration}] Loss: {clip_tot_loss / (clip_iteration + 1)}')
                                 logger2.info(f'clip_train_loss: {clip_tot_loss / (clip_iteration + 1)}')
+
+                                experiment.save_clip_checkpoint(f'{opt["output_path"]}/clip_model/last_checkpoint.pth', clip_iteration, clip_tot_loss)
                             clip_iteration += 1
 
                             if clip_iteration > opt['clip_iteration']:

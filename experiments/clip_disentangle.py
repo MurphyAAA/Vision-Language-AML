@@ -17,7 +17,6 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
             self.clip_model, self.preprocess = clip.load('ViT-B/32',device='cpu') # load it first to CPU to ensure you're using fp32 precision.
         self.clip_model = self.clip_model.to(self.device)
         self.freeze_clip()
-
         # image = preprocess().unsqueeze(0).to(self.device) # 将PIL.image变成可以作为模型输入的tensor
         # text = clip.tokenize(["xxx","sss","eee"]).to(self.device)
         # img_feature = self.clip_model.encode_image(image)
@@ -88,6 +87,29 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.optimizer2.load_state_dict(checkpoint['optimizer2'])
         return epoch, iteration, best_accuracy, total_train_loss
 
+    def save_clip_checkpoint(self, path, clip_iteration, total_clip_loss):
+        checkpoint = {}
+        # checkpoint['epoch'] = epoch
+        checkpoint['clip_iteration'] = clip_iteration  # 当前第几个iteration
+        checkpoint['total_clip_loss'] = total_clip_loss
+        checkpoint['clip_model'] = self.clip_model.state_dict()
+        checkpoint['clip_optimizer'] = self.clip_optimizer.state_dict()
+        torch.save(checkpoint, path)
+
+    def load_clip_checkpoint(self, path):
+        checkpoint = torch.load(path)
+        clip_iteration = checkpoint['clip_iteration']
+        total_clip_loss = checkpoint['total_clip_loss']
+        # checkpoint['model_state_dict']["input_resolution"] = self.clip_model.input_resolution  # default is 224
+        # checkpoint['model_state_dict']["context_length"] = self.clip_model.context_length  # default is 77
+        # checkpoint['model_state_dict']["context_length"] = 300
+        # checkpoint['model_state_dict']["vocab_size"] = self.clip_model.vocab_size
+        self.clip_model.load_state_dict(checkpoint['clip_model'])
+        self.clip_optimizer.load_state_dict(checkpoint['clip_optimizer'])
+
+        return clip_iteration, total_clip_loss
+
+
     def freezeLayer(self, layerName, setState):
         for param in layerName.parameters():
             param.requires_grad = not setState
@@ -114,7 +136,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.clip_optimizer.zero_grad()
         x, desc = databatch
         x = x.to(self.device)
-        tokenized_desc = clip.tokenize(desc, truncate=True).to(self.device)
+        tokenized_desc = clip.tokenize(desc,truncate=True).to(self.device)
 
         logits_per_image, logits_per_text = self.clip_model(x, tokenized_desc)
 
@@ -141,12 +163,12 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         x_s = x_s.to(self.device)
         y_s = y_s.to(self.device)
         yd_s = yd_s.to(self.device)
-        textToken_s = clip.tokenize(desc_s,truncate=True).to(self.device)
+        textToken_s = clip.tokenize(desc_s, truncate=True).to(self.device)
         textToken_s = textToken_s[i1]  # description有效的行
 
         x_t = x_t.to(self.device)  # [32,3,224,224] 32是一个batch中图片数量
         yd_t = yd_t.to(self.device)
-        textToken_t = clip.tokenize(desc_t,truncate=True).to(self.device)
+        textToken_t = clip.tokenize(desc_t, truncate=True).to(self.device)
         textToken_t = textToken_t[i2]
 
         # print(len(y_s), len(desc_s), len(desc_t))
