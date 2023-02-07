@@ -193,6 +193,8 @@ def main(opt):
                     if iteration % opt['validate_every'] == 0:
                         # Run validation
                         val_accuracy, val_loss ,mean_dom_acc= experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        test_accuracy, _ ,_= experiment.validate(test_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                        print(f'[TEST - {iteration}] | Accuracy: {(100 * test_accuracy):.2f}')
                         # print(len(validation_loader))
                         # print(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         logger1.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')

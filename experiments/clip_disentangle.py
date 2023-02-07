@@ -41,7 +41,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         # hyper parameters
         self.alpha1 = 1.2
         self.alpha2 = 0.5
-        self.w = [2, 1, 1, 0.5]
+        self.w = [2, 1, 1, 0.3]
         # Setup optimization procedure
         params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters())
         self.optimizer1 = torch.optim.Adam(params1 , lr=opt['lr'])
