@@ -3,6 +3,10 @@ import clip
 from models.base_model import CLIPDisentangleModel
 import torch.nn.functional as F
 
+import torchvision.transforms as transforms
+from PIL import Image
+from matplotlib import pyplot as plt
+import numpy as np
 
 class CLIPDisentangleExperiment:  # See point 4. of the project
 
@@ -186,12 +190,12 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.freezeLayer(self.model.category_classifier, True)
         self.freezeLayer(self.model.domain_classifier, True)
 
-        l_class_ent_1 = self.entropy_loss(DCfcs1)  # train category_encoder 1
+        l_class_ent_1 = self.entropy_loss(DCfcs1)  # train category_encoder 1 remove domain info from category encoder
         l_class_ent_2 = self.entropy_loss(DCfcs2)  # train category_encoder 2
         l_domain_ent_1 = self.entropy_loss(Cfds1)  # train domain_encoder 1
         l_domain_ent_2 = self.entropy_loss(Cfds2)  # train domain_encoder 2
-        l_class_ent = -(l_class_ent_1 + l_class_ent_2)
-        l_domain_ent = -(l_domain_ent_1 + l_domain_ent_2)
+        l_class_ent = (l_class_ent_1 + l_class_ent_2)
+        l_domain_ent = (l_domain_ent_1 + l_domain_ent_2)
 
         # fds1 = fds1[i1]
         if len(i1) >0:
@@ -209,8 +213,8 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         L_rec = l_rec_1 + l_rec_2
         # print(L_clip)
         L1 = self.w[2] * L_rec + self.w[3] * L_clip + \
-             self.w[0] * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + \
-             self.w[1] * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2)
+             self.w[0] * self.alpha1 * (l_class_ent) + \
+             self.w[1] * self.alpha2 * (l_domain_ent)
         self.optimizer1.zero_grad()
         L1.backward(retain_graph=True)  #  category_encoder + domain_encoder + reconstructor的梯度
 
@@ -246,7 +250,6 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
 
         with torch.no_grad():  # 禁用梯度计算，即使torch.tensor(xxx,requires_grad = True) 使用.requires_grad()也会返回False
             for x, y, yd, _ in loader:  # type(x) tensor x,y,yd,description
-
                 y = y.to(self.device)
                 x = x.to(self.device)
                 yd = yd.to(self.device)
