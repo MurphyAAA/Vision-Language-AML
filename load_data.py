@@ -148,7 +148,7 @@ def extract_images(file_path, domain_names,data_path):
             img_path = f'{data_path}/kfold/'
             des=''
             for i,x in enumerate(item['descriptions']):  # concat n string parameters -> 1 string
-                des = des + f'[{DESCRIPTORS[i]}]: {x}; '
+                des = des + f'{DESCRIPTORS[i]}: {x}; '
             images_desc.append((img_path + item['image_name'], des))
             categoryids.append(CATEGORIES[category])
     # images_desc: 一个数组，每个元素是一个元组(image_path, description)
@@ -318,7 +318,8 @@ def build_splits_clip_disentangle(opt,clip_preprocess):
     val_split_length = source_total_examples * 0.2  # 20% of the training split used for validation 验证集一共多少条数据
 
     train_clip_examples = []
-    train_examples = []
+    train_examples_source = []
+    train_examples_target = []
     val_examples = []
     test_examples = []
     # for fine-tune CLIP
@@ -333,23 +334,25 @@ def build_splits_clip_disentangle(opt,clip_preprocess):
         for i, example in enumerate(examples_list): # example (图片路径, description)
             # path, descriptions = example
             if i > split_idx:
-                train_examples.append([example, category_idx, 0, '-1'])  # each pair is [path_to_img, class_label, description]
+                train_examples_source.append([example, category_idx, 0, '-1'])  # each pair is [path_to_img, class_label, description]
             else:
                 val_examples.append([example, category_idx, 0, '-1'])  # each pair is [path_to_img, class_label, description]
 
     for category_idx, examples_list in target_examples.items():
         for example in examples_list:
             # path, descriptions = example
+            train_examples_target.append([example, category_idx, 1, '-1'])
             test_examples.append([example, category_idx, 1, '-1'])  # each pair is [path_to_img, class_label, description]
     # --
     for category_idx, examples_list in source_examples_des.items():  # key(类别id): val(图片路径, description id)
        for i, example in enumerate(examples_list):  # example (图片路径, description)
             path, descriptions = example
-            train_examples.append([path, category_idx, 0, descriptions])  # each pair is [path_to_img, class_label, description]
+            train_examples_source.append([path, category_idx, 0, descriptions])  # each pair is [path_to_img, class_label, description]
 
     for category_idx, examples_list in target_examples_des.items():
         for example in examples_list:
             path, descriptions = example
+            train_examples_target.append([path, category_idx, 1, descriptions])
             test_examples.append([path, category_idx, 1, descriptions])  # each pair is [path_to_img, class_label, description]
 
     ### ______
@@ -371,7 +374,8 @@ def build_splits_clip_disentangle(opt,clip_preprocess):
         T.ToTensor(),
         normalize
     ])
-    print("train_examples: ", len(train_examples))
+    print("train_examples: ", len(train_examples_source))
+    print("train_examples: ", len(train_examples_target))
     print("val_examples: ", len(val_examples))
     # Dataloaders
     if opt['train_clip'] == 'True':
@@ -379,14 +383,16 @@ def build_splits_clip_disentangle(opt,clip_preprocess):
         train_clip_loader = DataLoader(PACSDatasetDomainDisentangle_train_CLIP(train_clip_examples, clip_preprocess),batch_size=opt['batch_size'],
                               num_workers=opt['num_workers'], shuffle=True)
 
-    train_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(train_examples, train_transform),batch_size=opt['batch_size'],
+    train_loader_source = DataLoader(PACSDatasetDomainDisentangle_CLIP(train_examples_source, train_transform),batch_size=opt['batch_size']//2,
                               num_workers=opt['num_workers'], shuffle=True)
+    train_loader_target = DataLoader(PACSDatasetDomainDisentangle_CLIP(train_examples_target, train_transform), batch_size=opt['batch_size']//2,
+                                     num_workers=opt['num_workers'], shuffle=True)
     val_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(val_examples, eval_transform), batch_size=opt['batch_size'],
                             num_workers=opt['num_workers'], shuffle=False)
     test_loader = DataLoader(PACSDatasetDomainDisentangle_CLIP(test_examples, eval_transform), batch_size=opt['batch_size'],
                              num_workers=opt['num_workers'], shuffle=True)
 
     if opt['train_clip'] == 'True':
-        return train_loader, val_loader, test_loader, train_clip_loader
+        return train_loader_source, train_loader_target, val_loader, test_loader, train_clip_loader
     else:
-        return train_loader, val_loader, test_loader#, source_labeled_descriptions, target_labeled_descriptions
+        return train_loader_source, train_loader_target, val_loader, test_loader#, source_labeled_descriptions, target_labeled_descriptions

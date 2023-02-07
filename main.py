@@ -20,12 +20,12 @@ def setup_experiment(opt):
 
     elif opt['experiment'] == 'clip_disentangle':
         experiment = CLIPDisentangleExperiment(opt)
-        if opt['train_clip'] == 'True':
-            train_loader, validation_loader, test_loader, train_clip_loader = build_splits_clip_disentangle(opt,experiment.preprocess)
-            return experiment, train_loader, validation_loader, test_loader, train_clip_loader
-        else: # fine-tune clip
-            train_loader, validation_loader, test_loader = build_splits_clip_disentangle(opt,experiment.preprocess)
-            return experiment, train_loader, validation_loader, test_loader
+        if opt['train_clip'] == 'True': # fine-tune clip
+            train_loader_source, train_loader_target, validation_loader, test_loader, train_clip_loader = build_splits_clip_disentangle(opt,experiment.preprocess)
+            return experiment, train_loader_source, train_loader_target, validation_loader, test_loader, train_clip_loader
+        else:
+            train_loader_source, train_loader_target, validation_loader, test_loader = build_splits_clip_disentangle(opt,experiment.preprocess)
+            return experiment, train_loader_source, train_loader_target, validation_loader, test_loader
 
     else:
         raise ValueError('Experiment not yet supported.')
@@ -35,13 +35,14 @@ def setup_experiment(opt):
 
 def main(opt):
     fine_tune_clip_flag = False
-    if opt['experiment'] == 'domain_disentangle':
-        experiment, train_loader_source, train_loader_target, validation_loader, test_loader = setup_experiment(opt)
-    elif opt['experiment'] == 'clip_disentangle' and opt['train_clip'] == 'True':
-        experiment, train_loader, validation_loader, test_loader, train_clip_loader = setup_experiment(opt)
-        fine_tune_clip_flag = True
-    else: # baseline or (clip_disentangle && train_clip==false)
+    if opt['experiment'] == 'baseline':
         experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
+    elif opt['experiment'] == 'clip_disentangle' and opt['train_clip'] == 'True':
+        experiment, train_loader_source, train_loader_target, validation_loader, test_loader, train_clip_loader = setup_experiment(opt)
+        fine_tune_clip_flag = True
+    else: # 'domain_disentangle' or (clip_disentangle && train_clip==false)
+        experiment, train_loader_source, train_loader_target, validation_loader, test_loader = setup_experiment(opt)
+
     # Skip training if '--test' flag is set
     if not opt['test']:
     # --test is not set
@@ -163,9 +164,9 @@ def main(opt):
                     experiment.freeze_clip()
                     experiment.clip_model.float() # back to fp32 for later training
                     print("finish clip pre-training ",clip_iteration)
-                len_dataloader = min(len(train_loader), len(test_loader)) # 数据少 扫一遍数据跑的iteration少
-                data_source_iter = iter(train_loader)
-                data_target_iter = iter(test_loader)
+                len_dataloader = min(len(train_loader_source), len(train_loader_target)) # 数据少 扫一遍数据跑的iteration少
+                data_source_iter = iter(train_loader_source)
+                data_target_iter = iter(train_loader_target)
                 i = 0
                 while i < len_dataloader:
                     data_source = next(data_source_iter)  # next(...)

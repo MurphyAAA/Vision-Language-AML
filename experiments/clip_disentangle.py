@@ -41,7 +41,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         # hyper parameters
         self.alpha1 = 1.2
         self.alpha2 = 0.5
-        self.w = [2, 1, 1, 0.5]
+        self.w = [2, 1, 1, 1]
         # Setup optimization procedure
         params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters())
         self.optimizer1 = torch.optim.Adam(params1 , lr=opt['lr'])
@@ -177,40 +177,47 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
 
         # print(len(y_s), len(desc_s), len(desc_t))
         # feature_extractor, domain_encoder, category_encoder, domain_classifier, category_classifier, reconstructor
-        fG1, fG_hat1, Cfcs1, DCfcs1, DCfds1, Cfds1, fds1 = self.model(x_s)
-        # print(fds1.size()) 32 * 512
-        fG2, fG_hat2, _, DCfcs2, DCfds2, Cfds2, fds2 = self.model(x_t)
+        # fG1, fG_hat1, Cfcs1, DCfcs1, DCfds1, Cfds1, fds1 = self.model(x_s) # print(fds1.size()) 32 * 512
+        # fG2, fG_hat2, _, DCfcs2, DCfds2, Cfds2, fds2 = self.model(x_t)
+        x = torch.cat((x_s, x_t), dim=0)
+        yd = torch.cat((yd_s, yd_t), dim=0)
+        fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, fds = self.model(x)
 
         text_feature_s = self.clip_model.encode_text(textToken_s)
         text_feature_t = self.clip_model.encode_text(textToken_t)
-        # print(text_feature_s.size())
-        # print(text_feature_t.size())
+        text_feature = torch.cat((text_feature_s, text_feature_t), dim=0)
 
         # train reconstructor + category_encoder + domain_encoder
         self.freezeLayer(self.model.category_classifier, True)
         self.freezeLayer(self.model.domain_classifier, True)
 
-        l_class_ent_1 = self.entropy_loss(DCfcs1)  # train category_encoder 1 remove domain info from category encoder
-        l_class_ent_2 = self.entropy_loss(DCfcs2)  # train category_encoder 2
-        l_domain_ent_1 = self.entropy_loss(Cfds1)  # train domain_encoder 1
-        l_domain_ent_2 = self.entropy_loss(Cfds2)  # train domain_encoder 2
-        l_class_ent = (l_class_ent_1 + l_class_ent_2)
-        l_domain_ent = (l_domain_ent_1 + l_domain_ent_2)
+        # l_class_ent_1 = self.entropy_loss(DCfcs1)  # train category_encoder 1 remove domain info from category encoder
+        # l_class_ent_2 = self.entropy_loss(DCfcs2)  # train category_encoder 2
+        l_class_ent = self.entropy_loss(DCfcs)
+        # l_domain_ent_1 = self.entropy_loss(Cfds1)  # train domain_encoder 1
+        # l_domain_ent_2 = self.entropy_loss(Cfds2)  # train domain_encoder 2
+        l_domain_ent = self.entropy_loss(Cfds)
+        # l_class_ent = (l_class_ent_1 + l_class_ent_2)
+        # l_domain_ent = (l_domain_ent_1 + l_domain_ent_2)
 
-        # fds1 = fds1[i1]
-        if len(i1) >0:
-            l_clip1 = self.clip_loss(text_feature_s, fds1[i1])
+        # if len(i1) >0:
+        #     l_clip1 = self.clip_loss(text_feature_s, fds1[i1])
+        # else:
+        #     l_clip1 = 0
+        # if len(i2) > 0:
+        #     l_clip2 = self.clip_loss(text_feature_t, fds2[i2])
+        # else:
+        #     l_clip2 = 0
+        # L_clip = l_clip1 + l_clip2
+        i = i1 + [j + len(desc_s) for j in i2]  # concate valid index
+        if len(i) > 0:
+            L_clip = self.clip_loss(text_feature, fds[i])
         else:
-            l_clip1 = 0
-        if len(i2) > 0:
-            l_clip2 = self.clip_loss(text_feature_t, fds2[i2])
-        else:
-            l_clip2 = 0
-        L_clip = l_clip1 + l_clip2
-        # print("CLIP loss", L_clip.item())
-        l_rec_1 = self.rec_loss(fG1, fG_hat1)  # train reconstructor 1
-        l_rec_2 = self.rec_loss(fG2, fG_hat2)  # train reconstructor 2
-        L_rec = l_rec_1 + l_rec_2
+            L_clip = 0
+        # l_rec_1 = self.rec_loss(fG1, fG_hat1)  # train reconstructor 1
+        # l_rec_2 = self.rec_loss(fG2, fG_hat2)  # train reconstructor 2
+        # L_rec = l_rec_1 + l_rec_2
+        L_rec = self.rec_loss(fG,fG_hat)
         # print(L_clip)
         L1 = self.w[2] * L_rec + self.w[3] * L_clip + \
              self.w[0] * self.alpha1 * (l_class_ent) + \
@@ -224,11 +231,13 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.freezeLayer(self.model.reconstructor, True)
 
         # train [domain_classifier]
-        l_domain_1 = self.cross_entropy(DCfds1, yd_s)
-        l_domain_2 = self.cross_entropy(DCfds2, yd_t)
-        l_domain = l_domain_1 + l_domain_2
+        # l_domain_1 = self.cross_entropy(DCfds1, yd_s)
+        # l_domain_2 = self.cross_entropy(DCfds2, yd_t)
+        # l_domain = l_domain_1 + l_domain_2
+        l_domain = self.cross_entropy(DCfds, yd)
         # train [category_classifier]
-        l_class = self.cross_entropy(Cfcs1, y_s)
+        # l_class = self.cross_entropy(Cfcs1, y_s)
+        l_class = self.cross_entropy(Cfcs[0:len(y_s)],y_s)
         L2 = self.w[0] * l_class + self.w[1] * l_domain
         self.optimizer2.zero_grad()  # clean following grad: category_classifier + domain_classifier
         # category_encoder+category_classifier虽然没有计算梯度，但上一次保留了计算图，所以结果还在，这里清空只是变成0，并不是None，所以虽然requires_grad设成false 还是可能更新梯度，要在step前面从optimizer中踢出
@@ -238,7 +247,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         self.optimizer2.step()  # update following layers： category_classifier + domain_classifier
         self.unfreezeAll()
         loss = L1 + L2
-        return loss.item(),l_class.item(), l_class_ent.item(), l_domain.item(), l_domain_ent.item(), L_rec.item(), L_clip.item()
+        return loss.item(),l_class.item(), -l_class_ent.item(), l_domain.item(), -l_domain_ent.item(), L_rec.item(), L_clip.item()
 
     def validate(self, loader):
         self.clip_model.eval()
