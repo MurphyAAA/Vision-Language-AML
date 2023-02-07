@@ -41,7 +41,7 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         # hyper parameters
         self.alpha1 = 1.2
         self.alpha2 = 0.5
-        self.w = [2, 1, 1, 1]
+        self.w = [2, 1, 1, 0.5]
         # Setup optimization procedure
         params1 = list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters())
         self.optimizer1 = torch.optim.Adam(params1 , lr=opt['lr'])
@@ -249,13 +249,28 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         dom_acc = 0
 
         with torch.no_grad():  # 禁用梯度计算，即使torch.tensor(xxx,requires_grad = True) 使用.requires_grad()也会返回False
+            # flag=True
             for x, y, yd, _ in loader:  # type(x) tensor x,y,yd,description
+                # train_transform = transforms.Compose([
+                #     transforms.Resize(256),
+                #     transforms.RandAugment(3, 15),
+                #     transforms.CenterCrop(224),
+                #     transforms.ToTensor(),
+                #     transforms.Normalize([0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                # ])
+                # print(x.shape)
+
                 y = y.to(self.device)
                 x = x.to(self.device)
                 yd = yd.to(self.device)
 
                 _, _, Cfcs, _, DCfds, _,_ = self.model(x)
 
+                # if flag:
+                #     print(F.softmax(Cfcs[0]))
+                #     img = transform_invert(x[0].cpu(), train_transform)
+                #     img.show()
+                #     flag = False
                 loss += self.cross_entropy(Cfcs, y)
                 dom_pred = torch.argmax(DCfds, dim=-1)
                 pred = torch.argmax(Cfcs, dim=-1)
@@ -268,3 +283,29 @@ class CLIPDisentangleExperiment:  # See point 4. of the project
         mean_dom_acc = dom_acc / count
         self.model.train()
         return mean_accuracy, mean_loss,mean_dom_acc
+
+
+def transform_invert(img_, transform_train):
+    """
+    将data 进行反transfrom操作
+    :param img_: tensor
+    :param transform_train: torchvision.transforms
+    :return: PIL image
+    """
+    if 'Normalize' in str(transform_train):
+        norm_transform = list(filter(lambda x: isinstance(x, transforms.Normalize), transform_train.transforms))
+        mean = torch.tensor(norm_transform[0].mean, dtype=img_.dtype, device=img_.device)
+        std = torch.tensor(norm_transform[0].std, dtype=img_.dtype, device=img_.device)
+        img_.mul_(std[:, None, None]).add_(mean[:, None, None])
+
+    img_ = img_.transpose(0, 2).transpose(0, 1)  # C*H*W --> H*W*C
+    img_ = np.array(img_) * 255
+
+    if img_.shape[2] == 3:
+        img_ = Image.fromarray(img_.astype('uint8')).convert('RGB')
+    elif img_.shape[2] == 1:
+        img_ = Image.fromarray(img_.astype('uint8').squeeze())
+    else:
+        raise Exception("Invalid img shape, expected 1 or 3 in axis 2, but got {}!".format(img_.shape[2]))
+
+    return img_
