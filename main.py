@@ -190,13 +190,6 @@ def main(opt):
                         logger2.info(f'rec_loss: {tot_l_rec / (iteration + 1)}')
                         logger2.info(f'clip_loss: {tot_l_clip / (iteration + 1)}')
                         logger2.info('————————————————————————')
-                        # total_train_loss =0
-                        # tot_l_class_ent = 0
-                        # tot_l_domain_ent =0
-                        # tot_l_class =0
-                        # tot_l_domain =0
-                        # tot_l_rec =0
-                        # tot_l_clip =0
                     if iteration % opt['validate_every'] == 0:
                         # Run validation
                         val_accuracy, val_loss ,mean_dom_acc= experiment.validate(validation_loader)  # validate()中才有计算accuracy ，train只更新weight不计算accuracy
