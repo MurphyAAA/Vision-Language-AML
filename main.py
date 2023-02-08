@@ -91,7 +91,7 @@ def main(opt):
                 while i<len_dataloader:
                     data_source = next(data_source_iter)# next(...)
                     data_target = next(data_target_iter)# next(...)
-                    tloss, l_class_ent, l_domain_ent,l_class, l_domain, l_rec = experiment.train_iteration(data_source, data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
+                    tloss, l_class_ent, l_domain_ent,l_class, l_domain, l_rec = experiment.train_iteration(data_source, data_target, iteration)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
                     total_train_loss += tloss
                     tot_l_class_ent += l_class_ent
                     tot_l_domain_ent += l_domain_ent
@@ -162,7 +162,7 @@ def main(opt):
                 while i < len_dataloader:
                     data_source = next(data_source_iter)  # next(...)
                     data_target = next(data_target_iter)  # next(...)
-                    tloss, l_class, l_class_ent, l_domain, l_domain_ent, L_rec, L_clip =experiment.train_iteration(data_source,data_target)  # forward
+                    tloss, l_class, l_class_ent, l_domain, l_domain_ent, L_rec, L_clip =experiment.train_iteration(data_source,data_target, iteration)  # forward
                     total_train_loss += tloss
                     tot_l_class_ent += l_class_ent
                     tot_l_domain_ent += l_domain_ent

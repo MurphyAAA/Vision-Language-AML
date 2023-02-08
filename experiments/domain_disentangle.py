@@ -27,7 +27,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # Setup optimization procedure
         self.optimizer1 = torch.optim.Adam(list(self.model.reconstructor.parameters()) + list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters()) ,lr=opt['lr'] )
         self.optimizer2 = torch.optim.Adam(list(self.model.category_classifier.parameters()) + list(self.model.domain_classifier.parameters())+ list(self.model.feature_extractor.parameters()),lr=opt['lr'])
-
+        self.optimizer3 = torch.optim.Adam( list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters()) ,lr=opt['lr'] )
     def entropy_loss(self, f):
         res = -(torch.sum(-F.softmax(f,1)*F.log_softmax(f,1),1).mean())
         return res
@@ -65,7 +65,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
     def unfreezeAll(self):
         for param in self.model.parameters():
             param.requires_grad = True
-    def train_iteration(self, data_source, data_target):
+    def train_iteration(self, data_source, data_target, iteration):
         # [x]: source/target image
         # [y]:  category label(dog, elephant...)
         # [yd]: domain label (cartoon, photo...)
@@ -101,6 +101,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
              self.w1 * self.alpha1 * (l_class_ent_1 + l_class_ent_2) + \
              self.w2 * self.alpha2 * (l_domain_ent_1 + l_domain_ent_2)
         self.optimizer1.zero_grad()
+        self.optimizer3.zero_grad()
         L1.backward(retain_graph=True) # category_encoder + domain_encoder + reconstructor
 
         self.freezeLayer(self.model.category_classifier, False)
@@ -115,8 +116,12 @@ class DomainDisentangleExperiment: # See point 2. of the project
         L2 = self.w1 * l_class + self.w2 * l_domain
         self.optimizer2.zero_grad() # clear category_classifier + domain_classifier
         L2.backward()
-        self.optimizer1.step()  # [category_encoder + domain_encoder + reconstructor]
-        self.optimizer2.step()  # [feature extractor + category_classifier + domain_classifier]
+        if iteration % 40 == 0 :
+            self.optimizer1.step()  # [category_encoder + domain_encoder + reconstructor]
+            self.optimizer2.step()  # [feature extractor + category_classifier + domain_classifier]
+            self.optimizer3.step()
+        else:
+            self.optimizer3.step()
         self.unfreezeAll()
         loss = L1+L2
         return loss.item(),l_class_ent.item(), l_domain_ent.item(), l_class.item(), l_domain.item(), L_rec.item()

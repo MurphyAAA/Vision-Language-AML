@@ -40,7 +40,7 @@ class CLIPDisentangleExperiment:
 
         params2 = list(self.model.domain_classifier.parameters()) + list(self.model.category_classifier.parameters())+ list(self.model.feature_extractor.parameters())
         self.optimizer2 = torch.optim.Adam(params2, lr=opt['lr'])
-
+        self.optimizer3 = torch.optim.Adam(list(self.model.category_encoder.parameters() + list(self.model.domain_encoder.parameters()), lr = opt['lr']))
         self.clip_optimizer = torch.optim.Adam(self.clip_model.parameters(), lr=5e-5, betas=(0.9, 0.98), eps=1e-6, weight_decay=0.2)#Params used from paper, the lr is smaller, more safe for fine tuning to new dataset
 
     def convert_models_to_fp32(self):
@@ -128,7 +128,7 @@ class CLIPDisentangleExperiment:
             self.clip_optimizer.step()
             clip.model.convert_weights(self.clip_model) # mixed precision training. Convert applicable model parameters to fp16
         return total_loss.item()
-    def train_iteration(self, data_source, data_target):
+    def train_iteration(self, data_source, data_target, iteration):
 
         x_s, y_s, yd_s, desc_s = data_source  # desc could be '-1'
         x_t, _, yd_t, desc_t = data_target
@@ -172,6 +172,8 @@ class CLIPDisentangleExperiment:
              self.w[0] * self.alpha1 * (l_class_ent) + \
              self.w[1] * self.alpha2 * (l_domain_ent)
         self.optimizer1.zero_grad()
+        self.optimizer3.zero_grad()
+
         L1.backward(retain_graph=True)  #  category_encoder + domain_encoder + reconstructor
 
         self.freezeLayer(self.model.category_classifier, False)
@@ -184,9 +186,12 @@ class CLIPDisentangleExperiment:
         L2 = self.w[0] * l_class + self.w[1] * l_domain
         self.optimizer2.zero_grad()  # clean following grad: feature extractor + category_classifier + domain_classifier
         L2.backward()  # feature_extractor + domain_classifier + category_classifier
-
-        self.optimizer1.step()  # update following layers:  category_encoder + domain_encoder + reconstructor + alpha1 + alpha2
-        self.optimizer2.step()  # update following layers： feature_extractor + category_classifier + domain_classifier
+        if iteration % 40 == 0:
+            self.optimizer1.step()  # update following layers:  category_encoder + domain_encoder + reconstructor + alpha1 + alpha2
+            self.optimizer2.step()  # update following layers： feature_extractor + category_classifier + domain_classifier
+            self.optimizer3.step()
+        else:
+            self.optimizer3.step()
         self.unfreezeAll()
         loss = L1 + L2
         return loss.item(),l_class.item(), -l_class_ent.item(), l_domain.item(), -l_domain_ent.item(), L_rec.item(), L_clip.item()
