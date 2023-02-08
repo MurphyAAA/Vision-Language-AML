@@ -40,7 +40,7 @@ class CLIPDisentangleExperiment:
 
         params2 = list(self.model.domain_classifier.parameters()) + list(self.model.category_classifier.parameters())+ list(self.model.feature_extractor.parameters())
         self.optimizer2 = torch.optim.Adam(params2, lr=opt['lr'])
-        self.optimizer3 = torch.optim.Adam(list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters()), lr = opt['lr']))
+        self.optimizer3 = torch.optim.Adam(list(self.model.category_encoder.parameters()) + list(self.model.domain_encoder.parameters()), lr = opt['lr'])
         self.clip_optimizer = torch.optim.Adam(self.clip_model.parameters(), lr=5e-5, betas=(0.9, 0.98), eps=1e-6, weight_decay=0.2)#Params used from paper, the lr is smaller, more safe for fine tuning to new dataset
 
     def convert_models_to_fp32(self):
