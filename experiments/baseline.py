@@ -9,7 +9,7 @@ class BaselineExperiment: # See point 1. of the project
         self.device = torch.device('cpu' if opt['cpu'] else 'cuda:0')
 
         # Setup model
-        self.model = BaselineModel() # baseline的网络
+        self.model = BaselineModel() # baseline net
         self.model.train()
         self.model.to(self.device)
         for param in self.model.parameters():
@@ -45,26 +45,25 @@ class BaselineExperiment: # See point 1. of the project
         return epoch, iteration, best_accuracy, total_train_loss
 
     def train_iteration(self, data):
-        # data: tuple(图片的tensor,类别label)
+        # data: tuple(image, category label)
         x, y = data
         x = x.to(self.device)
         y = y.to(self.device) # y dtype:int64
-        logits = self.model(x) # 调用forward()向前传播 训练模型   训练完一次（base_model.py）
-        loss = self.criterion(logits, y) # 经过交叉熵的到loss
+        logits = self.model(x) # forward
+        loss = self.criterion(logits, y)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        # loss 是一个tensor变量，含有单个元素的tensor.item()返回对应的值，若tensor有多个元素，则调用.item()报错
         return loss.item()
 
     def validate(self, loader):
-        self.model.eval() #设置为evaluation 模式
+        self.model.eval() # evaluation mode
         accuracy = 0
         count = 0
         loss = 0
-        with torch.no_grad(): # 禁用梯度计算，即使torch.tensor(xxx,requires_grad = True) 使用.requires_grad()也会返回False
-            for x, y in loader: # type(x) tensor
+        with torch.no_grad():
+            for x, y in loader: # type(x): tensor
                 x = x.to(self.device)
                 y = y.to(self.device)
 

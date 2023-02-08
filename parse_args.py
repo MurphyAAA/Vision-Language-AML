@@ -2,7 +2,7 @@ import argparse
 import torch
 
 def parse_arguments():
-    # 使用控制台运行程序时 可以通过 python main.py --参数 val  来设置这些值  e.g.  python main.py --target_domain art_painting
+    #  e.g.  python main.py --target_domain art_painting
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--experiment', type=str, default='clip_disentangle', choices=['baseline', 'domain_disentangle', 'clip_disentangle'])

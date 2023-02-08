@@ -28,7 +28,6 @@ class FeatureExtractor(nn.Module):
 class BaselineModel(nn.Module):
     def __init__(self):
         super(BaselineModel, self).__init__()
-        # model中包含了 特征提取器和分类器
         self.feature_extractor = FeatureExtractor()
         self.category_encoder = nn.Sequential(
             nn.Linear(512, 512),
@@ -40,10 +39,10 @@ class BaselineModel(nn.Module):
             nn.ReLU(),
 
             nn.Linear(512, 512),
-            nn.BatchNorm1d(512), # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
+            nn.BatchNorm1d(512),
             nn.ReLU()
         )
-        self.classifier = nn.Linear(512, 7) # 全连接
+        self.classifier = nn.Linear(512, 7) # fc
 
     def forward(self, x):
         x = self.feature_extractor(x)
@@ -56,8 +55,7 @@ class DomainDisentangleModel(nn.Module):
         super(DomainDisentangleModel, self).__init__()
         self.feature_extractor = FeatureExtractor()
         self.p = 0.3
-        # domain_encoder, category_encoder都是 Disentangler()，两个encoder分开写了
-        # 变成只有domain信息的vector
+
         self.domain_encoder = nn.Sequential(
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),
@@ -68,12 +66,11 @@ class DomainDisentangleModel(nn.Module):
             nn.ReLU(),
 
             nn.Linear(512, 512),
-            nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
+            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(self.p)
         )
 
-        # 变成只有category信息的vector
         self.category_encoder = nn.Sequential(
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),
@@ -84,7 +81,7 @@ class DomainDisentangleModel(nn.Module):
             nn.ReLU(),
 
             nn.Linear(512, 512),
-            nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
+            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(self.p)
         )
@@ -96,9 +93,9 @@ class DomainDisentangleModel(nn.Module):
             nn.Linear(1024,512)
         )
 
-    def forward(self, x): # xd包含source+target domain的图
+    def forward(self, x):
 
-        x = self.feature_extractor(x) # 没有 category label的也正常参加处理，只是计算loss，更新梯度时排除掉
+        x = self.feature_extractor(x)
         fcs = self.category_encoder(x)
         fds = self.domain_encoder(x)
 
@@ -106,16 +103,16 @@ class DomainDisentangleModel(nn.Module):
         fG_hat = torch.cat((fds,fcs),dim=1)
         fG_hat = self.reconstructor(fG_hat)
 
-        Cfcs = self.category_classifier(fcs) # 经过classifier之后再传出去，nn自带的CrossEntropy本身包括了logSoftmax的计算
-        DCfcs = self.domain_classifier(fcs) #??????????? 这个要放外面算？？？，要冻住DC，反向传播不能更新domain_classifier
+        Cfcs = self.category_classifier(fcs)
+        DCfcs = self.domain_classifier(fcs)  # train category encoder to remove domain info
 
         DCfds = self.domain_classifier(fds)
-        Cfds = self.category_classifier(fds)
+        Cfds = self.category_classifier(fds)  # train domain encoder to remove category info
 
         return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds
 
 
-class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
+class CLIPDisentangleModel(nn.Module):
     def __init__(self):
         super(CLIPDisentangleModel, self).__init__()
         self.feature_extractor = FeatureExtractor()
@@ -130,7 +127,7 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
             nn.ReLU(),
 
             nn.Linear(512, 512),
-            nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
+            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(self.p)
         )
@@ -144,7 +141,7 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
             nn.ReLU(),
 
             nn.Linear(512, 512),
-            nn.BatchNorm1d(512),  # encoder就是得到一个vector，classifer就是把这个vector经过全连接得到n个类
+            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(self.p)
         )
@@ -166,10 +163,10 @@ class CLIPDisentangleModel(nn.Module): # 就多返回一个fd
         fG_hat = self.reconstructor(fG_hat)
 
         Cfcs = self.category_classifier(fcs)
-        DCfcs = self.domain_classifier(fcs) # 使category encoder排除掉domain的信息
+        DCfcs = self.domain_classifier(fcs) # train category encoder to remove domain info
 
         DCfds = self.domain_classifier(fds)
-        Cfds = self.category_classifier(fds)
+        Cfds = self.category_classifier(fds) # train domain encoder to remove category info
 
 
         return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds, fds
