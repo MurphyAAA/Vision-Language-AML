@@ -277,7 +277,7 @@ def build_splits_clip_disentangle(opt,clip_preprocess):
     source_examples = read_lines(opt['data_path'], source_domain)  # opt['data_path']: "data/PACS"
     target_examples = read_lines(opt['data_path'], target_domain)
     # clip_examples = read_lines_CLIP(opt['data_path'],['art_painting', 'cartoon', 'photo', 'sketch']) #一会试一下只留source 和target
-    clip_examples = read_lines_CLIP(opt['data_path'],['art_painting', 'cartoon', 'photo', 'sketch']) #一会试一下只留source 和target
+    clip_examples = read_lines_CLIP(opt['data_path'],['art_painting', target_domain])
 
     source_examples_des = read_lines_CLIP(opt['data_path'], [source_domain])  # opt['data_path']: "data/PACS"
     target_examples_des = read_lines_CLIP(opt['data_path'], [target_domain])
