@@ -74,7 +74,7 @@ def main(opt):
                     if iteration % opt['validate_every'] == 0:
                         # Run validation
                         val_accuracy, val_loss = experiment.validate(validation_loader)
-                        logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
+                        logger1.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         if val_accuracy > best_accuracy:
                             best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', epoch, iteration, best_accuracy, total_train_loss)
