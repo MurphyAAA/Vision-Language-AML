@@ -69,7 +69,7 @@ def main(opt):
                     total_train_loss += experiment.train_iteration(data) # forward
 
                     if iteration % opt['print_every'] == 0: # print every 50 iteration
-                        logging.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
+                        logger1.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
 
                     if iteration % opt['validate_every'] == 0:
                         # Run validation
