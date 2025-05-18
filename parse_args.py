@@ -5,7 +5,7 @@ def parse_arguments():
     #  e.g.  python main.py --target_domain art_painting
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--experiment', type=str, default='clip_disentangle', choices=['baseline', 'domain_disentangle', 'clip_disentangle'])
+    parser.add_argument('--experiment', type=str, default='baseline', choices=['baseline', 'domain_disentangle', 'clip_disentangle'])
 
     parser.add_argument('--target_domain', type=str, default='photo', choices=['art_painting', 'cartoon', 'sketch', 'photo'])
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate.')
@@ -30,7 +30,7 @@ def parse_arguments():
     
     # Additional arguments can go below this line:
     #parser.add_argument('--test', type=str, default='some default value', help='some hint that describes the effect')
-    parser.add_argument('--train_clip', type=str, default='True', choices=['True','False']) # True时自己手动预训练CLIP
+    parser.add_argument('--train_clip', type=str, default='False', choices=['True','False']) # True时自己手动预训练CLIP
     parser.add_argument('--clip_iteration', type=int, default=2000)
     # Build options dict
     opt = vars(parser.parse_args())

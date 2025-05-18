@@ -12,7 +12,6 @@ class CLIPDisentangleExperiment:
     def __init__(self, opt):
         self.opt = opt
         self.device = torch.device('cpu' if opt['cpu'] else 'cuda:0')
-
         # load CLIP and freeze it. vision Transformer base
         if opt['train_clip'] =='True':
             self.clip_model, self.preprocess = clip.load('ViT-B/32',device='cpu',jit=False)  #Must set jit=False for training
@@ -152,7 +151,7 @@ class CLIPDisentangleExperiment:
         yd = torch.cat((yd_s, yd_t), dim=0)
         fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, fds = self.model(x)
 
-        text_feature_s = self.clip_model.encode_text(textToken_s)
+        text_feature_s = self.clip_model.encode_text(textToken_s) #提取特征
         text_feature_t = self.clip_model.encode_text(textToken_t)
         text_feature = torch.cat((text_feature_s, text_feature_t), dim=0)
 
